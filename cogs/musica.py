@@ -41,6 +41,7 @@ class Tocador:
         self._timer_saida: Optional[asyncio.Task] = None
         self._pulando = False
         self.parando = False
+        self.modo_247 = False
 
     @property
     def vc(self) -> Optional[discord.VoiceClient]:
@@ -60,6 +61,8 @@ class Tocador:
 
     def agendar_saida(self, segundos: int, motivo: str):
         self.cancelar_saida()
+        if self.modo_247:
+            return  # no modo 24/7 o bot nunca sai sozinho
         self._timer_saida = asyncio.create_task(self._sair_depois(segundos, motivo))
 
     def cancelar_saida(self):
@@ -144,6 +147,15 @@ class Tocador:
         self._pulando = self.loop == "musica"  # pular com loop de música vai para a próxima de verdade
         if self.vc:
             self.vc.stop()  # o "after" chama a próxima
+
+    def limpar(self):
+        """Para a música e limpa a fila, mas continua no canal (usado no modo 24/7)."""
+        self.parando = True
+        self.fila.clear()
+        self.atual = None
+        if self.vc:
+            self.vc.stop()
+        self.parando = False
 
     async def parar(self):
         self.parando = True
@@ -286,9 +298,14 @@ class Musica(commands.Cog, name="Música"):
     @app_commands.guild_only()
     async def parar(self, interaction: discord.Interaction):
         t = await self._no_mesmo_canal(interaction, precisa_tocar=False)
-        if t:
-            await t.parar()
-            await interaction.response.send_message(embed=embeds.sucesso("Parei a música e saí do canal. Até mais! 👋"))
+        if not t:
+            return
+        if t.modo_247:
+            t.limpar()
+            return await interaction.response.send_message(
+                embed=embeds.sucesso("Parei a música e limpei a fila. Continuo no canal por causa do modo 24/7."))
+        await t.parar()
+        await interaction.response.send_message(embed=embeds.sucesso("Parei a música e saí do canal. Até mais! 👋"))
 
     @app_commands.command(name="pausar", description="Pausa a música.")
     @app_commands.guild_only()
@@ -397,6 +414,55 @@ class Musica(commands.Cog, name="Música"):
             return await self._erro(interaction, f"A fila só tem {len(t.fila)} músicas.")
         faixa = t.fila.pop(posicao - 1)
         await interaction.response.send_message(embed=embeds.sucesso(f"Tirei **{faixa.titulo}** da fila."))
+
+    @app_commands.command(name="247", description="Liga/desliga o modo 24/7: o bot fica no canal de voz direto.")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_guild=True)
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def modo_247(self, interaction: discord.Interaction):
+        t = self.tocador(interaction.guild)
+        if t.modo_247:
+            t.modo_247 = False
+            await self.bot.db.set_247(interaction.guild.id, None)
+            if not t.atual:
+                t.agendar_saida(SAIR_SEM_MUSICA, "porque o modo 24/7 foi desligado e a fila está vazia")
+            return await interaction.response.send_message(
+                embed=embeds.sucesso("Modo 24/7 **desligado**. Vou sair quando a fila acabar ou eu ficar sozinho."))
+
+        voz = interaction.user.voice
+        canal = t.vc.channel if t.vc else (voz.channel if voz else None)
+        if canal is None:
+            return await self._erro(interaction, "Entre num canal de voz para eu ficar nele.")
+        perms = canal.permissions_for(interaction.guild.me)
+        if not (perms.connect and perms.speak):
+            return await self._erro(interaction, f"Não tenho permissão para entrar e falar em {canal.mention}.")
+        if not t.vc:
+            await canal.connect(self_deaf=True)
+            t.parando = False
+        t.modo_247 = True
+        t.canal_texto = interaction.channel
+        t.cancelar_saida()
+        await self.bot.db.set_247(interaction.guild.id, canal.id)
+        await interaction.response.send_message(embed=embeds.sucesso(
+            f"Modo 24/7 **ligado** em {canal.mention}. Vou ficar aqui mesmo sem música, "
+            "e volto sozinho se o bot reiniciar."))
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        """Depois de reiniciar, volta para os canais com 24/7 ligado."""
+        for linha in await self.bot.db.list_247():
+            guild = self.bot.get_guild(linha["guild_id"])
+            canal = guild.get_channel(linha["channel_id"]) if guild else None
+            if not isinstance(canal, (discord.VoiceChannel, discord.StageChannel)):
+                continue
+            t = self.tocador(guild)
+            t.modo_247 = True
+            if not guild.voice_client:
+                try:
+                    await canal.connect(self_deaf=True)
+                    t.parando = False
+                except Exception as erro:
+                    log.warning("24/7: não voltei para %s: %s", canal.id, erro)
 
     # ----- sair quando ficar sozinho -----
 

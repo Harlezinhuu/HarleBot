@@ -94,3 +94,18 @@ def test_inventario_perfil_boosts():
         await db.close()
 
     rodar(cenario())
+
+
+def test_musica_247():
+    async def cenario():
+        db = Database(":memory:")
+        await db.connect()
+        assert await db.get_247(1) is None
+        await db.set_247(1, 55)
+        await db.set_247(1, 66)
+        assert await db.get_247(1) == 66 and len(await db.list_247()) == 1
+        await db.set_247(1, None)
+        assert await db.get_247(1) is None
+        await db.close()
+
+    rodar(cenario())

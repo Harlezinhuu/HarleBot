@@ -37,9 +37,10 @@ Toca músicas do **YouTube** e do **SoundCloud** no canal de voz, por nome ou li
 | `/fila`, `/remover`, `/embaralhar` | Gerencia a fila. |
 | `/loop` | Repete a música ou a fila inteira. |
 | `/volume` | De 0 a 150%. |
+| 🔒 `/247` | Modo 24/7: o bot fica no canal de voz direto, e volta sozinho se reiniciar. |
 
 - Se o YouTube bloquear uma música (comum em servidores na nuvem), o bot procura a mesma no SoundCloud sozinho.
-- Sai do canal depois de 3 minutos sem música ou 1 minuto sozinho.
+- Sai do canal depois de 3 minutos sem música ou 1 minuto sozinho (a não ser que o modo 24/7 esteja ligado).
 - O FFmpeg e o motor de JavaScript do YouTube vêm pelo `pip` (`imageio-ffmpeg` e `deno`), sem instalar nada à parte.
 
 ### Jogos

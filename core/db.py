@@ -92,6 +92,11 @@ CREATE TABLE IF NOT EXISTS boosts (
     PRIMARY KEY (guild_id, user_id, boost)
 );
 
+CREATE TABLE IF NOT EXISTS music_247 (
+    guild_id    INTEGER PRIMARY KEY,
+    channel_id  INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS level_settings (
     guild_id    INTEGER PRIMARY KEY,
     announce    INTEGER NOT NULL DEFAULT 1,
@@ -411,6 +416,28 @@ class Database:
         ) as cur:
             row = await cur.fetchone()
         return row["until"] if row else 0
+
+    # ---------- música 24/7 ----------
+
+    async def set_247(self, guild_id: int, channel_id: Optional[int]):
+        if channel_id is None:
+            await self.conn.execute("DELETE FROM music_247 WHERE guild_id = ?", (guild_id,))
+        else:
+            await self.conn.execute(
+                "INSERT INTO music_247 (guild_id, channel_id) VALUES (?, ?) "
+                "ON CONFLICT(guild_id) DO UPDATE SET channel_id = excluded.channel_id",
+                (guild_id, channel_id),
+            )
+        await self.conn.commit()
+
+    async def get_247(self, guild_id: int) -> Optional[int]:
+        async with self.conn.execute("SELECT channel_id FROM music_247 WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+        return row["channel_id"] if row else None
+
+    async def list_247(self) -> List[aiosqlite.Row]:
+        async with self.conn.execute("SELECT guild_id, channel_id FROM music_247") as cur:
+            return list(await cur.fetchall())
 
     async def set_level_settings(self, guild_id: int, announce: bool, channel_id: Optional[int]):
         await self.conn.execute(

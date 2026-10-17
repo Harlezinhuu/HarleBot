@@ -12,7 +12,7 @@ from discord.ext import commands
 
 from utils import embeds
 from utils.musica import (Faixa, achar_ffmpeg, arquivo_cookies, bloqueio_do_youtube, buscar,
-                          buscar_parecida_soundcloud, extrair_stream, formatar_duracao, opcoes_ffmpeg_antes)
+                          buscar_parecidas_soundcloud, extrair_stream, protegida_por_drm, formatar_duracao, opcoes_ffmpeg_antes)
 
 log = logging.getLogger("harle.musica")
 
@@ -118,8 +118,12 @@ class Tocador:
                 faixa = await self._preparar(faixa)
             except Exception as erro:
                 log.warning("Falha ao tocar %s: %s", faixa.pagina, erro)
-                motivo = ("o YouTube bloqueou o servidor e não achei essa música no SoundCloud"
-                          if faixa.fonte == "YouTube" else "o site não liberou o áudio")
+                if protegida_por_drm(erro):
+                    motivo = "ela tem proteção contra cópia (DRM) e não achei outra versão liberada"
+                elif faixa.fonte == "YouTube":
+                    motivo = "o YouTube bloqueou o servidor e não achei uma versão liberada no SoundCloud"
+                else:
+                    motivo = "o site não liberou o áudio"
                 await self.avisar(embed=embeds.erro(f"Não consegui tocar **{faixa.titulo}**: {motivo}. Pulando..."))
                 continue
 
@@ -140,24 +144,31 @@ class Tocador:
         self.agendar_saida(SAIR_SEM_MUSICA, "porque a fila acabou")
 
     async def _preparar(self, faixa: Faixa) -> Faixa:
-        """Busca o áudio. Se o YouTube bloquear, procura a mesma música no SoundCloud."""
+        """Busca o áudio. Se não der (YouTube bloqueado ou faixa com DRM), tenta outras versões no SoundCloud."""
         if faixa.fonte == "YouTube" and youtube_bloqueado():
-            erro_original = RuntimeError("YouTube bloqueado no momento")
+            erro_original: Exception = RuntimeError("YouTube bloqueado no momento")
         else:
             try:
                 return await asyncio.to_thread(extrair_stream, faixa)
             except Exception as erro:
-                if faixa.fonte != "YouTube":
-                    raise
-                if bloqueio_do_youtube(erro):
+                if faixa.fonte == "YouTube" and bloqueio_do_youtube(erro):
                     marcar_bloqueio()
+                elif not protegida_por_drm(erro):
+                    raise
                 erro_original = erro
-        alternativa = await asyncio.to_thread(buscar_parecida_soundcloud, faixa.titulo, faixa.pedido_por)
-        if alternativa is None:
-            raise erro_original
-        await self.avisar(f"↪️ O YouTube não liberou **{faixa.titulo}**, então achei no SoundCloud: "
-                          f"**{alternativa.titulo}**.")
-        return await asyncio.to_thread(extrair_stream, alternativa)
+
+        candidatas = await asyncio.to_thread(buscar_parecidas_soundcloud, faixa.titulo, faixa.pedido_por, faixa.pagina)
+        for candidata in candidatas:
+            try:
+                pronta = await asyncio.to_thread(extrair_stream, candidata)
+            except Exception as erro:
+                log.info("Candidata %s não serviu: %s", candidata.pagina, erro)
+                continue
+            motivo = "tem proteção (DRM)" if protegida_por_drm(erro_original) else "não foi liberada pelo YouTube"
+            await self.avisar(f"↪️ A versão original de **{faixa.titulo}** {motivo}, então achei outra no "
+                              f"SoundCloud: **{pronta.titulo}**.")
+            return pronta
+        raise erro_original
 
     def _terminou(self, erro: Optional[Exception]):
         if erro:

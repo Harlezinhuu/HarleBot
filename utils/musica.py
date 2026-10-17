@@ -143,7 +143,7 @@ def opcoes_ytdl(**extra) -> Dict:
 
 # ---------------------- busca (roda numa thread) ----------------------
 
-def buscar(texto: str, fonte: str, pedido_por: int) -> List[Faixa]:
+def buscar(texto: str, fonte: str, pedido_por: int, quantidade: int = 1) -> List[Faixa]:
     """Procura por link ou por texto. `fonte`: 'youtube' ou 'soundcloud'. Pode lançar exceção."""
     import yt_dlp
 
@@ -152,7 +152,7 @@ def buscar(texto: str, fonte: str, pedido_por: int) -> List[Faixa]:
         alvo = texto
         opcoes = opcoes_ytdl(extract_flat="in_playlist", noplaylist=False, playlistend=LIMITE_PLAYLIST)
     else:
-        alvo = f"{'scsearch1' if fonte == 'soundcloud' else 'ytsearch1'}:{texto}"
+        alvo = f"{'scsearch' if fonte == 'soundcloud' else 'ytsearch'}{quantidade}:{texto}"
         opcoes = opcoes_ytdl(extract_flat="in_playlist")
 
     with yt_dlp.YoutubeDL(opcoes) as ydl:
@@ -171,22 +171,29 @@ def buscar(texto: str, fonte: str, pedido_por: int) -> List[Faixa]:
     return faixas
 
 
-def buscar_parecida_soundcloud(titulo: str, pedido_por: int) -> Optional[Faixa]:
-    """Procura no SoundCloud a mesma música, tentando o título limpo e depois o original."""
-    tentativas = []
+def buscar_parecidas_soundcloud(titulo: str, pedido_por: int, excluir: str = "") -> List[Faixa]:
+    """Candidatas no SoundCloud para a mesma música (título limpo e original), sem repetir links."""
+    consultas = []
     for consulta in (limpar_titulo(titulo), titulo):
-        if consulta not in tentativas:
-            tentativas.append(consulta)
-    for consulta in tentativas:
+        if consulta not in consultas:
+            consultas.append(consulta)
+    vistas, candidatas = {excluir}, []
+    for consulta in consultas:
         try:
-            achadas = buscar(consulta, "soundcloud", pedido_por)
+            achadas = buscar(consulta, "soundcloud", pedido_por, quantidade=5)
         except Exception as erro:
             log.warning("Busca no SoundCloud falhou (%s): %s", consulta, erro)
             continue
         log.info("SoundCloud para '%s': %d resultado(s)", consulta, len(achadas))
-        if achadas:
-            return achadas[0]
-    return None
+        for faixa in achadas:
+            if faixa.pagina not in vistas:
+                vistas.add(faixa.pagina)
+                candidatas.append(faixa)
+    return candidatas
+
+
+def protegida_por_drm(erro: Exception) -> bool:
+    return "drm" in str(erro).lower()
 
 
 def bloqueio_do_youtube(erro: Exception) -> bool:

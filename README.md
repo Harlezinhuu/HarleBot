@@ -26,7 +26,10 @@ Feito por **Harle** · [harlezinhuu.github.io](https://harlezinhuu.github.io)
 Toda punição vira um **caso numerado** (#1, #2...), a pessoa recebe uma mensagem privada
 explicando o motivo e o bot não deixa ninguém punir alguém com cargo igual ou maior que o dele.
 
-### Música
+### Música (desligada por enquanto)
+> A música está pronta no código (`cogs/musica.py`), mas desligada: o YouTube bloqueia servidores na nuvem
+> e algumas faixas do SoundCloud têm DRM. Para ligar, siga as instruções no `requirements.txt` e no `bot.py`.
+
 Toca músicas do **YouTube** e do **SoundCloud** no canal de voz, por nome ou link (playlists também).
 
 | Comando | O que faz |
@@ -153,7 +156,7 @@ python bot.py
 Pronto! No servidor, use `/config-logs` para escolher o canal de registros.
 
 ### 3. Ou hospede na Square Cloud (24h, sem deixar o PC ligado)
-O projeto já vem com o `squarecloud.app` configurado (768 MB de RAM e reinício automático).
+O projeto já vem com o `squarecloud.app` configurado (512 MB de RAM e reinício automático).
 
 1. Compacte os arquivos do projeto em um `.zip`, com o `squarecloud.app` **na raiz** do zip (sem a pasta `.env`).
 2. No painel da [Square Cloud](https://squarecloud.app), clique em **Upload** e envie o zip.
@@ -182,7 +185,7 @@ Para adicionar um módulo novo, crie um arquivo em `cogs/` e coloque o nome dele
 ## Próximas etapas
 - [x] Etapa 1: base, moderação e registros
 - [x] Etapa 2: jogos (quiz, forca, velha, ppt), economia com moedas, níveis por XP e status aleatórios
-- [x] Etapa 3: música (SoundCloud e YouTube)
+- [ ] Etapa 3: música (pronta no código, desligada por enquanto)
 - [ ] Hospedagem 24h na nuvem
 
 ## Licença

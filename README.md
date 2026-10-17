@@ -31,7 +31,7 @@ explicando o motivo e o bot não deixa ninguém punir alguém com cargo igual ou
 |---|---|
 | `/quiz` | Pergunta com 4 opções. Quem acertar primeiro ganha moedas (cada pessoa tem uma chance). |
 | `/forca` | Forca em grupo: todo mundo do canal pode chutar letras ou a palavra. |
-| `/velha` | Jogo da velha contra alguém ou contra o bot (ganhar do bot vale moedas). |
+| `/velha` | Jogo da velha contra alguém (a pessoa recebe um convite para aceitar) ou contra o bot, nas dificuldades fácil, médio e impossível. |
 | `/ppt` | Pedra, papel e tesoura contra o bot, com aposta opcional. |
 
 ### Economia (Harlecoins 🪙)

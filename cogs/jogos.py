@@ -4,6 +4,7 @@ from typing import List, Optional
 
 import discord
 from discord import app_commands
+from discord.app_commands import Choice
 from discord.ext import commands
 
 from conteudo.palavras import PALAVRAS
@@ -14,7 +15,12 @@ from utils.jogos import DESENHOS, MAX_ERROS, Forca, jogada_do_bot, resultado_ppt
 PREMIO_QUIZ = 50
 PREMIO_FORCA_LETRA = 80
 PREMIO_FORCA_PALAVRA = 120
-PREMIO_VELHA = 100
+# dificuldade -> (nome, chance do bot errar de propósito, prêmio por vencer, prêmio por empatar)
+DIFICULDADES = {
+    "facil": ("Fácil", 0.6, 50, 0),
+    "medio": ("Médio", 0.25, 100, 0),
+    "impossivel": ("Impossível", 0.0, 0, 60),
+}
 LETRAS = ["A", "B", "C", "D"]
 
 
@@ -209,11 +215,13 @@ class CasaVelha(discord.ui.Button):
 
 
 class VelhaView(discord.ui.View):
-    def __init__(self, bot, jogador_x: discord.abc.User, jogador_o: discord.abc.User, contra_bot: bool):
+    def __init__(self, bot, jogador_x: discord.abc.User, jogador_o: discord.abc.User, contra_bot: bool,
+                 dificuldade: str = "medio"):
         super().__init__(timeout=180)
         self.bot = bot
         self.jogadores = {"X": jogador_x, "O": jogador_o}
         self.contra_bot = contra_bot
+        self.dificuldade = dificuldade
         self.vez = "X"
         self.tab: List[Optional[str]] = [None] * 9
         self.mensagem: Optional[discord.Message] = None
@@ -223,7 +231,10 @@ class VelhaView(discord.ui.View):
 
     def texto(self, fim: Optional[str] = None) -> str:
         x, o = self.jogadores["X"].mention, self.jogadores["O"].mention
-        cabecalho = f"❌ {x}  vs  ⭕ {o}\n\n"
+        cabecalho = f"❌ {x}  vs  ⭕ {o}"
+        if self.contra_bot:
+            cabecalho += f"  ·  dificuldade **{DIFICULDADES[self.dificuldade][0]}**"
+        cabecalho += "\n\n"
         if fim == "empate":
             return cabecalho + "🤝 **Deu velha!** Empate."
         if fim:
@@ -248,7 +259,8 @@ class VelhaView(discord.ui.View):
         if not fim:
             self.vez = "O" if self.vez == "X" else "X"
             if self.contra_bot:
-                self._marcar(jogada_do_bot(self.tab, "O"), "O")
+                chance_de_errar = DIFICULDADES[self.dificuldade][1]
+                self._marcar(jogada_do_bot(self.tab, "O", chance_de_errar), "O")
                 fim = vencedor_velha(self.tab)
                 self.vez = "X"
 
@@ -257,13 +269,65 @@ class VelhaView(discord.ui.View):
             self.stop()
             for casa in self.casas:
                 casa.disabled = True
-            if fim == "X" and self.contra_bot:
-                await self.bot.db.add_coins(interaction.guild.id, self.jogadores["X"].id, PREMIO_VELHA)
-                extra = f"\nVocê ganhou {moeda.fmt(PREMIO_VELHA)}!"
+            if self.contra_bot:
+                _, _, premio_vitoria, premio_empate = DIFICULDADES[self.dificuldade]
+                premio = premio_vitoria if fim == "X" else premio_empate if fim == "empate" else 0
+                if premio:
+                    await self.bot.db.add_coins(interaction.guild.id, self.jogadores["X"].id, premio)
+                    extra = f"\nVocê ganhou {moeda.fmt(premio)}!"
         await interaction.response.edit_message(content=self.texto(fim) + extra, view=self)
 
     async def on_timeout(self):
         await _desativar(self, self.mensagem)
+
+
+class ConviteVelha(discord.ui.View):
+    """Convite para jogo da velha entre duas pessoas: o desafiado precisa aceitar."""
+
+    def __init__(self, bot, desafiante: discord.abc.User, desafiado: discord.abc.User):
+        super().__init__(timeout=60)
+        self.bot = bot
+        self.desafiante = desafiante
+        self.desafiado = desafiado
+        self.mensagem: Optional[discord.Message] = None
+        self.respondido = False
+
+    def texto(self) -> str:
+        return (f"🎮 {self.desafiado.mention}, {self.desafiante.mention} te desafiou para um **jogo da velha**!\n"
+                f"Você tem 60 segundos para aceitar.")
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.desafiado.id:
+            return True
+        if interaction.user.id == self.desafiante.id:
+            await interaction.response.send_message("Espere a outra pessoa responder ao convite.", ephemeral=True)
+        else:
+            await interaction.response.send_message("Esse convite não é para você.", ephemeral=True)
+        return False
+
+    @discord.ui.button(label="Aceitar", emoji="✅", style=discord.ButtonStyle.success)
+    async def aceitar(self, interaction: discord.Interaction, _):
+        self.respondido = True
+        self.stop()
+        jogo = VelhaView(self.bot, self.desafiante, self.desafiado, contra_bot=False)
+        jogo.mensagem = self.mensagem
+        await interaction.response.edit_message(content=jogo.texto(), view=jogo)
+
+    @discord.ui.button(label="Recusar", emoji="✖️", style=discord.ButtonStyle.secondary)
+    async def recusar(self, interaction: discord.Interaction, _):
+        self.respondido = True
+        self.stop()
+        await interaction.response.edit_message(
+            content=f"{self.desafiado.mention} recusou o desafio de {self.desafiante.mention}.", view=None)
+
+    async def on_timeout(self):
+        if self.mensagem and not self.respondido:
+            try:
+                await self.mensagem.edit(
+                    content=f"⏰ {self.desafiado.mention} não respondeu ao desafio de {self.desafiante.mention}.",
+                    view=None)
+            except discord.HTTPException:
+                pass
 
 
 # ======================= PEDRA, PAPEL E TESOURA =======================
@@ -363,22 +427,36 @@ class Jogos(commands.Cog, name="Jogos"):
         await interaction.response.send_message(embed=view.embed("Use os botões para chutar."), view=view)
         view.mensagem = await interaction.original_response()
 
-    @app_commands.command(name="velha", description="Jogo da velha contra alguém ou contra mim.")
-    @app_commands.describe(oponente="Com quem jogar (vazio = contra o bot)")
+    @app_commands.command(name="velha", description="Jogo da velha contra alguém (com convite) ou contra mim.")
+    @app_commands.describe(oponente="Quem desafiar (vazio = jogar contra o bot)",
+                           dificuldade="Dificuldade do bot (só vale contra o bot)")
+    @app_commands.choices(dificuldade=[
+        Choice(name="Fácil (vitória vale 50)", value="facil"),
+        Choice(name="Médio (vitória vale 100)", value="medio"),
+        Choice(name="Impossível (empate vale 60)", value="impossivel"),
+    ])
     @app_commands.guild_only()
-    async def velha(self, interaction: discord.Interaction, oponente: Optional[discord.Member] = None):
-        contra_bot = oponente is None or oponente.id == self.bot.user.id
-        if not contra_bot:
+    async def velha(self, interaction: discord.Interaction, oponente: Optional[discord.Member] = None,
+                    dificuldade: Optional[Choice[str]] = None):
+        if oponente is not None and oponente.id != self.bot.user.id:
             if oponente.bot:
                 return await interaction.response.send_message(
                     embed=embeds.erro("Esse bot não sabe jogar. Me desafie deixando o oponente vazio!"), ephemeral=True)
             if oponente.id == interaction.user.id:
                 return await interaction.response.send_message(
                     embed=embeds.erro("Jogar contra você mesmo não vale!"), ephemeral=True)
-        adversario = self.bot.user if contra_bot else oponente
-        view = VelhaView(self.bot, interaction.user, adversario, contra_bot)
-        extra = f"\nGanhe de mim e leve {moeda.fmt(PREMIO_VELHA)}!" if contra_bot else ""
-        await interaction.response.send_message(view.texto() + extra, view=view)
+            convite = ConviteVelha(self.bot, interaction.user, oponente)
+            await interaction.response.send_message(
+                convite.texto(), view=convite, allowed_mentions=discord.AllowedMentions(users=[oponente]))
+            convite.mensagem = await interaction.original_response()
+            return
+
+        nivel = dificuldade.value if dificuldade else "medio"
+        view = VelhaView(self.bot, interaction.user, self.bot.user, contra_bot=True, dificuldade=nivel)
+        _, _, premio_vitoria, premio_empate = DIFICULDADES[nivel]
+        dica = (f"\nGanhe de mim e leve {moeda.fmt(premio_vitoria)}!" if premio_vitoria
+                else f"\nNinguém ganha de mim aqui. Empate e leve {moeda.fmt(premio_empate)}!")
+        await interaction.response.send_message(view.texto() + dica, view=view)
         view.mensagem = await interaction.original_response()
 
     @app_commands.command(name="ppt", description="Pedra, papel e tesoura contra mim, com aposta opcional.")

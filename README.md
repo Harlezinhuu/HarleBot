@@ -26,6 +26,41 @@ Feito por **Harle** · [harlezinhuu.github.io](https://harlezinhuu.github.io)
 Toda punição vira um **caso numerado** (#1, #2...), a pessoa recebe uma mensagem privada
 explicando o motivo e o bot não deixa ninguém punir alguém com cargo igual ou maior que o dele.
 
+### Jogos
+| Comando | O que faz |
+|---|---|
+| `/quiz` | Pergunta com 4 opções. Quem acertar primeiro ganha moedas (cada pessoa tem uma chance). |
+| `/forca` | Forca em grupo: todo mundo do canal pode chutar letras ou a palavra. |
+| `/velha` | Jogo da velha contra alguém ou contra o bot (ganhar do bot vale moedas). |
+| `/ppt` | Pedra, papel e tesoura contra o bot, com aposta opcional. |
+
+### Economia (Harlecoins 🪙)
+| Comando | O que faz |
+|---|---|
+| `/daily` | Moedas do dia. Voltando todo dia, a sequência dá bônus. |
+| `/trabalhar` | Ganha moedas uma vez por hora. |
+| `/saldo` | Mostra a carteira. |
+| `/pagar` | Manda moedas para outra pessoa. |
+| `/apostar` | Cara ou coroa: acertou, dobra. |
+| `/ranking-moedas` | Quem tem mais moedas no servidor. |
+| `/loja` e `/comprar` | Cargos à venda, comprados com moedas. |
+| 🔒 `/loja-adicionar`, `/loja-remover`, `/dar-moedas` | Para a administração gerenciar a loja e as moedas. |
+
+### Níveis
+Cada mensagem no chat dá XP (no máximo uma vez por minuto, para não valer spam).
+Ao subir de nível, a pessoa ganha moedas e, se configurado, um cargo.
+
+| Comando | O que faz |
+|---|---|
+| `/nivel` | Nível, XP e posição no ranking. |
+| `/ranking-xp` | Quem mais conversa no servidor. |
+| `/recompensas` | Cargos que se ganha por nível. |
+| 🔒 `/recompensa-adicionar`, `/recompensa-remover` | Configura os cargos por nível. |
+| 🔒 `/config-niveis` | Liga/desliga o aviso de subir de nível e escolhe o canal. |
+
+### Status
+O perfil do bot fica trocando de status a cada 45 segundos (lista em `cogs/status.py`, fácil de editar).
+
 ### Registros
 Com `/config-logs #canal`, o bot anota nesse canal: punições, limpezas, mensagens apagadas
 e editadas, e quem entra e sai do servidor.
@@ -89,8 +124,9 @@ pytest
 ```
 bot.py            # liga o bot e carrega os módulos
 cogs/             # cada arquivo é um módulo (moderação, registros...)
-core/db.py        # banco de dados SQLite (avisos, casos, configurações)
-utils/            # cores, mensagens e conversor de tempo
+core/db.py        # banco de dados SQLite (avisos, casos, moedas, XP, configurações)
+conteudo/         # perguntas do quiz e palavras da forca (fácil de adicionar mais)
+utils/            # cores, moeda, regras dos jogos e contas de nível
 tests/            # testes automáticos
 ```
 
@@ -98,7 +134,7 @@ Para adicionar um módulo novo, crie um arquivo em `cogs/` e coloque o nome dele
 
 ## Próximas etapas
 - [x] Etapa 1: base, moderação e registros
-- [ ] Etapa 2: jogos (quiz, economia com moedas, jogos rápidos e níveis por XP)
+- [x] Etapa 2: jogos (quiz, forca, velha, ppt), economia com moedas, níveis por XP e status aleatórios
 - [ ] Etapa 3: música (SoundCloud e YouTube)
 - [ ] Hospedagem 24h na nuvem
 

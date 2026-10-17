@@ -21,6 +21,10 @@ COGS = [
     "cogs.config",
     "cogs.moderacao",
     "cogs.registros",
+    "cogs.economia",
+    "cogs.niveis",
+    "cogs.jogos",
+    "cogs.status",
 ]
 
 # Nome das permissões como aparecem no Discord em português
@@ -84,7 +88,6 @@ class HarleBot(commands.Bot):
 
     async def on_ready(self):
         log.info("Online como %s (%s) em %d servidores", self.user, self.user.id, len(self.guilds))
-        await self.change_presence(activity=discord.Game(name="/ajuda"))
 
     async def close(self):
         await self.db.close()

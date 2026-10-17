@@ -32,3 +32,42 @@ def test_avisos_e_casos():
         await db.close()
 
     rodar(cenario())
+
+
+def test_economia_e_niveis():
+    async def cenario():
+        db = Database(":memory:")
+        await db.connect()
+
+        assert (await db.get_wallet(1, 10))["coins"] == 0
+        assert await db.add_coins(1, 10, 100) == 100
+        assert await db.add_coins(1, 10, -500) == 0          # nunca fica negativo
+        await db.add_coins(1, 10, 100)
+        assert await db.spend_coins(1, 10, 150) is False     # não tem o suficiente
+        assert await db.transfer(1, 10, 20, 60) is True
+        assert (await db.get_wallet(1, 10))["coins"] == 40
+        assert (await db.get_wallet(1, 20))["coins"] == 60
+        assert [r["user_id"] for r in await db.top_coins(1)] == [20, 10]
+
+        await db.set_daily(1, 10, 1000, 3)
+        carteira = await db.get_wallet(1, 10)
+        assert carteira["last_daily"] == 1000 and carteira["streak"] == 3
+
+        await db.shop_add(1, 555, 300)
+        await db.shop_add(1, 555, 250)                       # muda o preço
+        assert (await db.shop_get(1, 555))["price"] == 250
+        assert await db.shop_remove(1, 555) is True
+
+        assert await db.add_xp(1, 10, 20) == (0, 20)
+        assert await db.add_xp(1, 10, 30) == (20, 50)
+        await db.add_xp(1, 20, 80)
+        assert await db.xp_rank(1, 20) == 1 and await db.xp_rank(1, 10) == 2
+
+        await db.reward_set(1, 5, 777)
+        assert [r["level"] for r in await db.rewards_list(1)] == [5]
+        assert await db.get_level_settings(1) == (True, None)
+        await db.set_level_settings(1, False, 999)
+        assert await db.get_level_settings(1) == (False, 999)
+        await db.close()
+
+    rodar(cenario())

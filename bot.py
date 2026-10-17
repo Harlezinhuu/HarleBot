@@ -24,6 +24,8 @@ COGS = [
     "cogs.economia",
     "cogs.niveis",
     "cogs.jogos",
+    "cogs.cassino",
+    "cogs.batalha",
     "cogs.status",
 ]
 

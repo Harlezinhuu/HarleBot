@@ -33,6 +33,13 @@ explicando o motivo e o bot não deixa ninguém punir alguém com cargo igual ou
 | `/forca` | Forca em grupo: todo mundo do canal pode chutar letras ou a palavra. |
 | `/velha` | Jogo da velha contra alguém (a pessoa recebe um convite para aceitar) ou contra o bot, nas dificuldades fácil, médio e impossível. |
 | `/ppt` | Pedra, papel e tesoura contra o bot, com aposta opcional. |
+| `/batalha` | Batalha 1x1 por turnos (atacar, especial, defender e curar), com convite e aposta opcional. Quem demorar mais de 60s na vez perde. |
+
+### Cassino
+| Comando | O que faz |
+|---|---|
+| `/blackjack` | 21 contra a mesa: pedir carta, parar ou dobrar. Blackjack de cara paga 3 para 2. |
+| `/minas` | Campo minado: cada casa aberta aumenta o multiplicador. Saque antes de achar uma bomba (3, 5 ou 8 bombas). |
 
 ### Economia (Harlecoins 🪙)
 | Comando | O que faz |

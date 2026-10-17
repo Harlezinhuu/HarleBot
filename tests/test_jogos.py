@@ -94,3 +94,84 @@ def test_palavras_jogaveis():
             j = Forca(palavra, categoria)
             assert len(j.palavra) == len(j.base), palavra
             assert "_" in j.mascara, palavra
+
+
+# ---------- blackjack, minas e batalha ----------
+
+import random as _random
+
+from utils.batalha import Batalha, Lutador
+from utils.cassino import CASAS_MINAS, Blackjack, Minas, multiplicador_minas, valor_mao
+
+
+def test_valor_mao_com_as():
+    assert valor_mao([("A", "♠"), ("K", "♥")]) == 21
+    assert valor_mao([("A", "♠"), ("A", "♥"), ("9", "♦")]) == 21
+    assert valor_mao([("K", "♠"), ("Q", "♥"), ("5", "♦")]) == 25
+
+
+def test_blackjack_pagamentos_e_regras():
+    resultados = set()
+    for semente in range(400):
+        j = Blackjack(100, _random.Random(semente))
+        while not j.acabou:
+            j.pedir() if valor_mao(j.jogador) < 15 else j.parar()
+        resultados.add(j.resultado)
+        if j.resultado != "estourou":
+            assert valor_mao(j.mesa) >= 17 or len(j.mesa) == 2
+        esperado = {"blackjack": 250, "vitoria": 200, "empate": 100}.get(j.resultado, 0)
+        assert j.pagamento == esperado
+    assert resultados == {"blackjack", "vitoria", "empate", "derrota", "estourou"}
+
+
+def test_blackjack_dobrar():
+    for semente in range(100):
+        j = Blackjack(50, _random.Random(semente))
+        if j.pode_dobrar:
+            j.dobrar()
+            assert j.acabou and j.aposta == 100 and len(j.jogador) == 3
+            return
+    raise AssertionError("nenhuma mão permitiu dobrar")
+
+
+def test_minas():
+    assert multiplicador_minas(3, 0) == 1.0
+    assert multiplicador_minas(3, 1) == round(0.97 * 20 / 17, 2)
+    assert multiplicador_minas(8, 3) > multiplicador_minas(3, 3)  # mais bombas paga mais
+
+    m = Minas(100, 3, _random.Random(1))
+    segura = next(i for i in range(CASAS_MINAS) if i not in m.bombas)
+    assert m.abrir(segura) == "diamante" and m.abrir(segura) == "ja_aberta"
+    assert m.premio_atual == int(100 * multiplicador_minas(3, 1))
+    assert m.abrir(next(iter(m.bombas))) == "bomba" and m.acabou
+
+    m2 = Minas(100, 3, _random.Random(2))
+    seguras = [i for i in range(CASAS_MINAS) if i not in m2.bombas]
+    for i in seguras[:-1]:
+        assert m2.abrir(i) == "diamante"
+    assert m2.abrir(seguras[-1]) == "limpou" and m2.acabou
+
+
+def test_batalha_ate_o_fim():
+    for semente in range(50):
+        b = Batalha(Lutador(1, "Ana"), Lutador(2, "Beto"), _random.Random(semente))
+        rng = _random.Random(semente + 1000)
+        jogadas = 0
+        while not b.acabou:
+            acao = rng.choice(["atacar", "atacar", "especial", "defender", "curar"])
+            b.agir(acao)
+            jogadas += 1
+            assert jogadas < 500
+            for l in b.lutadores:
+                assert 0 <= l.vida <= 100 and l.curas >= 0
+        assert b.vencedor.vida > 0 and min(l.vida for l in b.lutadores) == 0
+
+
+def test_batalha_regras():
+    b = Batalha(Lutador(1, "Ana"), Lutador(2, "Beto"), _random.Random(0))
+    eu = b.atual
+    b.agir("especial")
+    b.agir("defender")            # o outro defende
+    assert b.atual is eu and b.agir("especial") == "O especial ainda está carregando."
+    b.desistencia(eu.uid)
+    assert b.vencedor is not eu

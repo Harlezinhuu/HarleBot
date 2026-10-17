@@ -175,3 +175,14 @@ def test_batalha_regras():
     assert b.atual is eu and b.agir("especial") == "O especial ainda está carregando."
     b.desistencia(eu.uid)
     assert b.vencedor is not eu
+
+
+def test_itens_da_loja():
+    from conteudo.itens import CATEGORIAS, ITENS
+    for item_id, item in ITENS.items():
+        assert item["categoria"] in CATEGORIAS, item_id
+        assert item["preco"] > 0 and item["nome"] and item["emoji"], item_id
+        if item["categoria"] == "tema":
+            assert isinstance(item["cor"], int), item_id
+        if item_id in ("boost_xp", "boost_trabalho"):
+            assert item["duracao"] > 0

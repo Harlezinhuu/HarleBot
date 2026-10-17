@@ -82,6 +82,9 @@ class Economia(commands.Cog, name="Economia"):
         streak = carteira["streak"] + 1 if ultimo and agora - ultimo < 2 * DIA else 1
         bonus = DAILY_BONUS_POR_DIA * (min(streak, DAILY_BONUS_MAXIMO) - 1)
         ganho = DAILY_BASE + bonus
+        dobrou = await self.db.inv_use(interaction.guild.id, interaction.user.id, "boost_daily")
+        if dobrou:
+            ganho *= 2
         await self.db.set_daily(interaction.guild.id, interaction.user.id, agora, streak)
         saldo = await self.db.add_coins(interaction.guild.id, interaction.user.id, ganho)
 
@@ -90,6 +93,8 @@ class Economia(commands.Cog, name="Economia"):
         e.add_field(name="Sequência", value=f"🔥 {streak} {'dia' if streak == 1 else 'dias'}")
         if bonus:
             e.add_field(name="Bônus da sequência", value=f"+{bonus}")
+        if dobrou:
+            e.add_field(name="🎁 Boost", value="Daily em dobro usado!")
         e.add_field(name="Saldo", value=moeda.fmt(saldo), inline=False)
         e.set_footer(text="Volte amanhã para manter a sequência!")
         await interaction.response.send_message(embed=e)
@@ -105,11 +110,14 @@ class Economia(commands.Cog, name="Economia"):
                 embed=embeds.erro(f"Você está cansado. Descanse mais **{_relogio(falta)}**."), ephemeral=True)
 
         ganho = random.randint(TRABALHO_MIN, TRABALHO_MAX)
+        dobro = await self.db.boost_until(interaction.guild.id, interaction.user.id, "boost_trabalho") > agora
+        if dobro:
+            ganho *= 2
         await self.db.set_work(interaction.guild.id, interaction.user.id, agora)
         saldo = await self.db.add_coins(interaction.guild.id, interaction.user.id, ganho)
         e = discord.Embed(color=embeds.VERDE,
                           description=f"💼 Você {random.choice(TRABALHOS)} e ganhou {moeda.fmt(ganho)}.")
-        e.set_footer(text=f"Saldo: {saldo:,}".replace(",", "."))
+        e.set_footer(text=(f"Saldo: {saldo:,}".replace(",", ".")) + (" · 💼 salário em dobro ativo" if dobro else ""))
         await interaction.response.send_message(embed=e)
 
     @app_commands.command(name="pagar", description=f"Manda {moeda.NOME} para outra pessoa.")
@@ -163,53 +171,7 @@ class Economia(commands.Cog, name="Economia"):
                           description="\n".join(linhas))
         await interaction.response.send_message(embed=e)
 
-    # ---------- loja de cargos ----------
-
-    @app_commands.command(name="loja", description="Mostra os cargos que dá para comprar com moedas.")
-    @app_commands.guild_only()
-    async def loja(self, interaction: discord.Interaction):
-        itens = await self.db.shop_list(interaction.guild.id)
-        if not itens:
-            return await interaction.response.send_message(
-                embed=embeds.erro("A loja está vazia. A administração pode adicionar cargos com `/loja-adicionar`."),
-                ephemeral=True)
-        linhas = []
-        for item in itens:
-            cargo = interaction.guild.get_role(item["role_id"])
-            if cargo:
-                linhas.append(f"{cargo.mention} · {moeda.EMOJI} {item['price']:,}".replace(",", "."))
-        e = discord.Embed(title="🛒 Loja do servidor", color=embeds.AZUL,
-                          description="\n".join(linhas) or "Nenhum cargo disponível.")
-        e.set_footer(text="Compre com /comprar")
-        await interaction.response.send_message(embed=e)
-
-    @app_commands.command(name="comprar", description="Compra um cargo da loja.")
-    @app_commands.describe(cargo="O cargo que você quer comprar")
-    @app_commands.guild_only()
-    @app_commands.checks.bot_has_permissions(manage_roles=True)
-    async def comprar(self, interaction: discord.Interaction, cargo: discord.Role):
-        item = await self.db.shop_get(interaction.guild.id, cargo.id)
-        if item is None:
-            return await interaction.response.send_message(
-                embed=embeds.erro("Esse cargo não está à venda. Veja a `/loja`."), ephemeral=True)
-        if cargo in interaction.user.roles:
-            return await interaction.response.send_message(embed=embeds.erro("Você já tem esse cargo."), ephemeral=True)
-        if cargo >= interaction.guild.me.top_role:
-            return await interaction.response.send_message(
-                embed=embeds.erro("Esse cargo está acima do meu, então não consigo entregar. Avise a administração."),
-                ephemeral=True)
-        if not await self.db.spend_coins(interaction.guild.id, interaction.user.id, item["price"]):
-            return await interaction.response.send_message(
-                embed=embeds.erro(f"Você precisa de {moeda.fmt(item['price'])} para comprar esse cargo."),
-                ephemeral=True)
-        try:
-            await interaction.user.add_roles(cargo, reason="Comprado na loja do Harle Bot")
-        except discord.HTTPException:
-            await self.db.add_coins(interaction.guild.id, interaction.user.id, item["price"])  # devolve
-            return await interaction.response.send_message(
-                embed=embeds.erro("Não consegui entregar o cargo. Suas moedas foram devolvidas."), ephemeral=True)
-        await interaction.response.send_message(
-            embed=embeds.sucesso(f"{interaction.user.mention} comprou o cargo {cargo.mention}!"))
+    # ---------- loja de cargos (a /loja e a /comprar ficam em cogs/perfil.py) ----------
 
     @app_commands.command(name="loja-adicionar", description="Coloca um cargo à venda na loja (ou muda o preço).")
     @app_commands.describe(cargo="Cargo para vender", preco="Preço em moedas")

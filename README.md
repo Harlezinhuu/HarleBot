@@ -50,8 +50,26 @@ explicando o motivo e o bot não deixa ninguém punir alguém com cargo igual ou
 | `/pagar` | Manda moedas para outra pessoa. |
 | `/apostar` | Cara ou coroa: acertou, dobra. |
 | `/ranking-moedas` | Quem tem mais moedas no servidor. |
-| `/loja` e `/comprar` | Cargos à venda, comprados com moedas. |
 | 🔒 `/loja-adicionar`, `/loja-remover`, `/dar-moedas` | Para a administração gerenciar a loja e as moedas. |
+
+### Loja e perfil
+Itens comprados com Harlecoins para personalizar o perfil, no estilo da Loritta.
+
+| Comando | O que faz |
+|---|---|
+| `/loja` | Abre a loja com abas: temas, insígnias, títulos, boosts e cargos do servidor. |
+| `/comprar` | Compra um item (é só começar a digitar o nome ou a categoria). |
+| `/inventario` | Seus itens e boosts ativos. |
+| `/usar` | Equipa um tema ou título, ou ativa um boost. |
+| `/perfil` | Perfil com tema, título, "sobre mim", insígnias, nível e moedas. |
+| `/sobremim` | Escreve o texto do seu perfil. |
+
+- **Temas** mudam a cor e o emoji do perfil (Neon, Sakura, Galáxia, Ouro...).
+- **Insígnias** aparecem todas no perfil (🐉, 👑, 💎...).
+- **Títulos** aparecem embaixo do nome ("A Lenda", "Lenda do Cassino"...).
+- **Boosts**: XP em dobro e salário em dobro por 1 hora, e daily em dobro.
+
+Para criar itens novos, é só editar `conteudo/itens.py`.
 
 ### Níveis
 Cada mensagem no chat dá XP (no máximo uma vez por minuto, para não valer spam).

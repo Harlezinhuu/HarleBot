@@ -38,7 +38,10 @@ class Niveis(commands.Cog, name="Níveis"):
         if len(self._ultima_xp) > 20_000:  # limpa a memória de vez em quando
             self._ultima_xp = {k: v for k, v in self._ultima_xp.items() if agora - v < INTERVALO_XP}
 
-        antes, depois = await self.db.add_xp(mensagem.guild.id, mensagem.author.id, random.randint(XP_MIN, XP_MAX))
+        xp = random.randint(XP_MIN, XP_MAX)
+        if await self.db.boost_until(mensagem.guild.id, mensagem.author.id, "boost_xp") > time.time():
+            xp *= 2
+        antes, depois = await self.db.add_xp(mensagem.guild.id, mensagem.author.id, xp)
         nivel_antes, nivel_depois = nivel_de(antes)[0], nivel_de(depois)[0]
         if nivel_depois > nivel_antes:
             await self._subiu_de_nivel(mensagem, nivel_depois)

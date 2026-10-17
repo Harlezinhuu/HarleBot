@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from utils import embeds
 
-ORDEM = ["Geral", "Jogos", "Cassino", "Batalha", "Economia", "Níveis", "Moderação", "Configuração"]
+ORDEM = ["Geral", "Jogos", "Cassino", "Batalha", "Economia", "Loja e Perfil", "Níveis", "Moderação", "Configuração"]
 SITE = "https://harlezinhuu.github.io"
 
 

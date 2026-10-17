@@ -22,6 +22,7 @@ COGS = [
     "cogs.moderacao",
     "cogs.registros",
     "cogs.economia",
+    "cogs.perfil",
     "cogs.niveis",
     "cogs.jogos",
     "cogs.cassino",

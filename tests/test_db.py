@@ -71,3 +71,26 @@ def test_economia_e_niveis():
         await db.close()
 
     rodar(cenario())
+
+
+def test_inventario_perfil_boosts():
+    async def cenario():
+        db = Database(":memory:")
+        await db.connect()
+        await db.inv_add(1, 10, "boost_xp", 2)
+        assert await db.inv_count(1, 10, "boost_xp") == 2
+        assert await db.inv_use(1, 10, "boost_xp") and await db.inv_use(1, 10, "boost_xp")
+        assert await db.inv_use(1, 10, "boost_xp") is False
+        assert await db.inv_list(1, 10) == []
+
+        assert await db.profile_get(1, 10) == (None, None, None)
+        await db.profile_set(1, 10, "about", "oi")
+        await db.profile_set(1, 10, "theme", "tema_ouro")
+        assert await db.profile_get(1, 10) == ("oi", "tema_ouro", None)
+
+        assert await db.boost_activate(1, 10, "boost_xp", 3600, agora=1000) == 4600
+        assert await db.boost_activate(1, 10, "boost_xp", 3600, agora=2000) == 8200  # acumula
+        assert await db.boost_activate(1, 10, "boost_xp", 3600, agora=10000) == 13600  # já tinha acabado
+        await db.close()
+
+    rodar(cenario())

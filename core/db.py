@@ -67,6 +67,31 @@ CREATE TABLE IF NOT EXISTS level_rewards (
     PRIMARY KEY (guild_id, level)
 );
 
+CREATE TABLE IF NOT EXISTS inventory (
+    guild_id  INTEGER NOT NULL,
+    user_id   INTEGER NOT NULL,
+    item_id   TEXT    NOT NULL,
+    quantity  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, user_id, item_id)
+);
+
+CREATE TABLE IF NOT EXISTS profile (
+    guild_id  INTEGER NOT NULL,
+    user_id   INTEGER NOT NULL,
+    about     TEXT,
+    theme     TEXT,
+    title     TEXT,
+    PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS boosts (
+    guild_id  INTEGER NOT NULL,
+    user_id   INTEGER NOT NULL,
+    boost     TEXT    NOT NULL,
+    until     INTEGER NOT NULL,
+    PRIMARY KEY (guild_id, user_id, boost)
+);
+
 CREATE TABLE IF NOT EXISTS level_settings (
     guild_id    INTEGER PRIMARY KEY,
     announce    INTEGER NOT NULL DEFAULT 1,
@@ -313,6 +338,79 @@ class Database:
         if row is None:
             return True, None
         return bool(row["announce"]), row["channel_id"]
+
+    # ---------- inventário, perfil e boosts ----------
+
+    async def inv_add(self, guild_id: int, user_id: int, item_id: str, quantidade: int = 1):
+        await self.conn.execute(
+            "INSERT INTO inventory (guild_id, user_id, item_id, quantity) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(guild_id, user_id, item_id) DO UPDATE SET quantity = quantity + excluded.quantity",
+            (guild_id, user_id, item_id, quantidade),
+        )
+        await self.conn.commit()
+
+    async def inv_count(self, guild_id: int, user_id: int, item_id: str) -> int:
+        async with self.conn.execute(
+            "SELECT quantity FROM inventory WHERE guild_id = ? AND user_id = ? AND item_id = ?",
+            (guild_id, user_id, item_id),
+        ) as cur:
+            row = await cur.fetchone()
+        return row["quantity"] if row else 0
+
+    async def inv_list(self, guild_id: int, user_id: int) -> List[aiosqlite.Row]:
+        async with self.conn.execute(
+            "SELECT item_id, quantity FROM inventory WHERE guild_id = ? AND user_id = ? AND quantity > 0",
+            (guild_id, user_id),
+        ) as cur:
+            return list(await cur.fetchall())
+
+    async def inv_use(self, guild_id: int, user_id: int, item_id: str) -> bool:
+        """Gasta 1 unidade do item. Devolve se a pessoa tinha."""
+        cur = await self.conn.execute(
+            "UPDATE inventory SET quantity = quantity - 1 "
+            "WHERE guild_id = ? AND user_id = ? AND item_id = ? AND quantity > 0",
+            (guild_id, user_id, item_id),
+        )
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def profile_get(self, guild_id: int, user_id: int) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Devolve (sobre_mim, tema, titulo)."""
+        async with self.conn.execute(
+            "SELECT about, theme, title FROM profile WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)
+        ) as cur:
+            row = await cur.fetchone()
+        return (row["about"], row["theme"], row["title"]) if row else (None, None, None)
+
+    async def profile_set(self, guild_id: int, user_id: int, campo: str, valor: Optional[str]):
+        if campo not in ("about", "theme", "title"):
+            raise ValueError(campo)
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO profile (guild_id, user_id) VALUES (?, ?)", (guild_id, user_id)
+        )
+        await self.conn.execute(
+            f"UPDATE profile SET {campo} = ? WHERE guild_id = ? AND user_id = ?", (valor, guild_id, user_id)
+        )
+        await self.conn.commit()
+
+    async def boost_activate(self, guild_id: int, user_id: int, boost: str, segundos: int, agora: int) -> int:
+        """Liga (ou estende) um boost. Devolve até quando ele vale."""
+        atual = await self.boost_until(guild_id, user_id, boost)
+        ate = max(atual, agora) + segundos
+        await self.conn.execute(
+            "INSERT INTO boosts (guild_id, user_id, boost, until) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(guild_id, user_id, boost) DO UPDATE SET until = excluded.until",
+            (guild_id, user_id, boost, ate),
+        )
+        await self.conn.commit()
+        return ate
+
+    async def boost_until(self, guild_id: int, user_id: int, boost: str) -> int:
+        async with self.conn.execute(
+            "SELECT until FROM boosts WHERE guild_id = ? AND user_id = ? AND boost = ?", (guild_id, user_id, boost)
+        ) as cur:
+            row = await cur.fetchone()
+        return row["until"] if row else 0
 
     async def set_level_settings(self, guild_id: int, announce: bool, channel_id: Optional[int]):
         await self.conn.execute(

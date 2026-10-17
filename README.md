@@ -70,6 +70,14 @@ python bot.py
 
 Pronto! No servidor, use `/config-logs` para escolher o canal de registros.
 
+### 3. Ou hospede na Square Cloud (24h, sem deixar o PC ligado)
+O projeto já vem com o `squarecloud.app` configurado (512 MB de RAM e reinício automático).
+
+1. Compacte os arquivos do projeto em um `.zip`, com o `squarecloud.app` **na raiz** do zip (sem a pasta `.env`).
+2. No painel da [Square Cloud](https://squarecloud.app), clique em **Upload** e envie o zip.
+3. Nas **variáveis de ambiente** da aplicação, adicione `DISCORD_TOKEN` com o token do bot.
+4. Inicie a aplicação e acompanhe pelo console do painel.
+
 ### Testes
 ```bash
 pip install pytest

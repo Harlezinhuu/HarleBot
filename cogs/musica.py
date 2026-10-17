@@ -265,6 +265,7 @@ class Musica(commands.Cog, name="Música"):
             onde = "youtube" if arquivo_cookies() and not youtube_bloqueado() else "soundcloud"
         try:
             faixas = await asyncio.to_thread(buscar, busca, onde, interaction.user.id)
+            log.info("Busca '%s' em %s: %d resultado(s)", busca, onde, len(faixas))
             if not faixas and onde == "soundcloud" and not fonte:
                 faixas = await asyncio.to_thread(buscar, busca, "youtube", interaction.user.id)
             elif not faixas and onde == "youtube":

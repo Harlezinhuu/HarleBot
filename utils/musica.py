@@ -1,5 +1,6 @@
 """Busca de músicas com yt-dlp (YouTube e SoundCloud) e utilidades."""
 import glob
+import logging
 import os
 import re
 import shlex
@@ -10,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 LIMITE_PLAYLIST = 50
+log = logging.getLogger("harle.musica")
 URL = re.compile(r"^https?://", re.I)
 
 
@@ -178,8 +180,10 @@ def buscar_parecida_soundcloud(titulo: str, pedido_por: int) -> Optional[Faixa]:
     for consulta in tentativas:
         try:
             achadas = buscar(consulta, "soundcloud", pedido_por)
-        except Exception:
+        except Exception as erro:
+            log.warning("Busca no SoundCloud falhou (%s): %s", consulta, erro)
             continue
+        log.info("SoundCloud para '%s': %d resultado(s)", consulta, len(achadas))
         if achadas:
             return achadas[0]
     return None

@@ -65,7 +65,18 @@ class HarleBot(commands.Bot):
             # Servidor de testes: os comandos aparecem na hora
             servidor = discord.Object(id=int(guild_id))
             self.tree.copy_global_to(guild=servidor)
-            sincronizados = await self.tree.sync(guild=servidor)
+            try:
+                sincronizados = await self.tree.sync(guild=servidor)
+            except discord.Forbidden:
+                log.error(
+                    "Não consegui registrar os comandos no servidor %s. Confira se: "
+                    "(1) o GUILD_ID é o ID certo do servidor; "
+                    "(2) o bot já foi adicionado nesse servidor; "
+                    "(3) o convite foi gerado com os escopos 'bot' E 'applications.commands'. "
+                    "O bot vai continuar ligado, mas os comandos não vão aparecer até isso ser resolvido.",
+                    guild_id,
+                )
+                return
         else:
             # Global: pode levar alguns minutos para aparecer em todos os servidores
             sincronizados = await self.tree.sync()

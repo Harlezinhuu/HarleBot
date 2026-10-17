@@ -27,6 +27,7 @@ COGS = [
     "cogs.jogos",
     "cogs.cassino",
     "cogs.batalha",
+    "cogs.musica",
     "cogs.status",
 ]
 

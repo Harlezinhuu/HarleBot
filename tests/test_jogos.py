@@ -186,3 +186,17 @@ def test_itens_da_loja():
             assert isinstance(item["cor"], int), item_id
         if item_id in ("boost_xp", "boost_trabalho"):
             assert item["duracao"] > 0
+
+
+# ---------- música ----------
+
+def test_faixa_de_info():
+    from utils.musica import faixa_de_info, formatar_duracao, opcoes_ffmpeg_antes
+    yt = faixa_de_info({"id": "abc123", "url": "abc123", "title": "Música", "duration": 185, "ie_key": "Youtube"}, 7)
+    assert yt.pagina == "https://www.youtube.com/watch?v=abc123" and yt.fonte == "YouTube" and yt.pedido_por == 7
+    sc = faixa_de_info({"url": "https://soundcloud.com/artista/faixa", "title": "Som", "ie_key": "Soundcloud"})
+    assert sc.fonte == "SoundCloud" and sc.duracao is None
+    assert faixa_de_info({"title": "sem link"}) is None
+    assert formatar_duracao(185) == "3:05" and formatar_duracao(3725) == "1:02:05" and formatar_duracao(None) == "ao vivo/?"
+    assert "-headers" in opcoes_ffmpeg_antes("-nostdin", {"User-Agent": "x"})
+    assert opcoes_ffmpeg_antes("-nostdin", {}) == "-nostdin"

@@ -26,6 +26,22 @@ Feito por **Harle** · [harlezinhuu.github.io](https://harlezinhuu.github.io)
 Toda punição vira um **caso numerado** (#1, #2...), a pessoa recebe uma mensagem privada
 explicando o motivo e o bot não deixa ninguém punir alguém com cargo igual ou maior que o dele.
 
+### Música
+Toca músicas do **YouTube** e do **SoundCloud** no canal de voz, por nome ou link (playlists também).
+
+| Comando | O que faz |
+|---|---|
+| `/tocar` | Toca ou coloca na fila (dá para escolher onde procurar). |
+| `/pular`, `/pausar`, `/continuar`, `/parar` | Controles básicos (`/parar` limpa a fila e sai). |
+| `/tocando` | Música atual com barra de progresso. |
+| `/fila`, `/remover`, `/embaralhar` | Gerencia a fila. |
+| `/loop` | Repete a música ou a fila inteira. |
+| `/volume` | De 0 a 150%. |
+
+- Se o YouTube bloquear uma música (comum em servidores na nuvem), o bot procura a mesma no SoundCloud sozinho.
+- Sai do canal depois de 3 minutos sem música ou 1 minuto sozinho.
+- O FFmpeg e o motor de JavaScript do YouTube vêm pelo `pip` (`imageio-ffmpeg` e `deno`), sem instalar nada à parte.
+
 ### Jogos
 | Comando | O que faz |
 |---|---|
@@ -131,7 +147,7 @@ python bot.py
 Pronto! No servidor, use `/config-logs` para escolher o canal de registros.
 
 ### 3. Ou hospede na Square Cloud (24h, sem deixar o PC ligado)
-O projeto já vem com o `squarecloud.app` configurado (512 MB de RAM e reinício automático).
+O projeto já vem com o `squarecloud.app` configurado (768 MB de RAM e reinício automático).
 
 1. Compacte os arquivos do projeto em um `.zip`, com o `squarecloud.app` **na raiz** do zip (sem a pasta `.env`).
 2. No painel da [Square Cloud](https://squarecloud.app), clique em **Upload** e envie o zip.
@@ -160,7 +176,7 @@ Para adicionar um módulo novo, crie um arquivo em `cogs/` e coloque o nome dele
 ## Próximas etapas
 - [x] Etapa 1: base, moderação e registros
 - [x] Etapa 2: jogos (quiz, forca, velha, ppt), economia com moedas, níveis por XP e status aleatórios
-- [ ] Etapa 3: música (SoundCloud e YouTube)
+- [x] Etapa 3: música (SoundCloud e YouTube)
 - [ ] Hospedagem 24h na nuvem
 
 ## Licença

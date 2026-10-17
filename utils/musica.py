@@ -105,6 +105,21 @@ def opcoes_ffmpeg_antes(base: str, headers: Dict[str, str]) -> str:
     return f"{base} -headers {shlex.quote(texto)}"
 
 
+def arquivo_cookies() -> Optional[str]:
+    """Cookies do YouTube (opcional). Ajuda quando o YouTube bloqueia o servidor."""
+    caminho = os.getenv("YOUTUBE_COOKIES") or "cookies.txt"
+    return caminho if os.path.isfile(caminho) else None
+
+
+def limpar_titulo(titulo: str) -> str:
+    """'3. Thiago x Leozin - Captura (Prod. Neco) [Clipe]' -> 'Thiago x Leozin - Captura'"""
+    t = re.sub(r"[\(\[\{][^\)\]\}]*[\)\]\}]", " ", titulo)      # tira (…) [...] {...}
+    t = re.sub(r"^\s*\d+\s*[\.\-\)]\s*", "", t)                   # tira numeração do começo
+    t = re.split(r"\s[|•]\s", t)[0]                                 # tira o que vem depois de | ou •
+    t = re.sub(r"\b(official|oficial|video|vídeo|clipe|lyrics?|audio|áudio|visualizer|hd|4k)\b", " ", t, flags=re.I)
+    return re.sub(r"\s+", " ", t).strip(" -–") or titulo
+
+
 def opcoes_ytdl(**extra) -> Dict:
     opcoes = {
         "format": "bestaudio/best",
@@ -117,6 +132,9 @@ def opcoes_ytdl(**extra) -> Dict:
     deno = achar_deno()
     if deno:
         opcoes["js_runtimes"] = {"deno": {"path": deno}}
+    cookies = arquivo_cookies()
+    if cookies:
+        opcoes["cookiefile"] = cookies
     opcoes.update(extra)
     return opcoes
 
@@ -149,6 +167,27 @@ def buscar(texto: str, fonte: str, pedido_por: int) -> List[Faixa]:
             if faixa:
                 faixas.append(faixa)
     return faixas
+
+
+def buscar_parecida_soundcloud(titulo: str, pedido_por: int) -> Optional[Faixa]:
+    """Procura no SoundCloud a mesma música, tentando o título limpo e depois o original."""
+    tentativas = []
+    for consulta in (limpar_titulo(titulo), titulo):
+        if consulta not in tentativas:
+            tentativas.append(consulta)
+    for consulta in tentativas:
+        try:
+            achadas = buscar(consulta, "soundcloud", pedido_por)
+        except Exception:
+            continue
+        if achadas:
+            return achadas[0]
+    return None
+
+
+def bloqueio_do_youtube(erro: Exception) -> bool:
+    texto = str(erro).lower()
+    return "sign in to confirm" in texto or "not a bot" in texto or "http error 429" in texto
 
 
 def extrair_stream(faixa: Faixa) -> Faixa:

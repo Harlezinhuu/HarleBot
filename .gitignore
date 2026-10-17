@@ -1,5 +1,6 @@
 # Segredos e dados locais
 .env
+cookies.txt
 data/
 
 # Python

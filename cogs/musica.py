@@ -11,7 +11,8 @@ from discord.app_commands import Choice
 from discord.ext import commands
 
 from utils import embeds
-from utils.musica import Faixa, achar_ffmpeg, buscar, extrair_stream, formatar_duracao, opcoes_ffmpeg_antes
+from utils.musica import (Faixa, achar_ffmpeg, arquivo_cookies, bloqueio_do_youtube, buscar,
+                          buscar_parecida_soundcloud, extrair_stream, formatar_duracao, opcoes_ffmpeg_antes)
 
 log = logging.getLogger("harle.musica")
 
@@ -23,6 +24,17 @@ SAIR_SOZINHO = 60       # segundos sozinho no canal
 LIMITE_FILA = 200
 LOOPS = {"desligado": "➡️ Desligado", "musica": "🔂 Música atual", "fila": "🔁 Fila inteira"}
 COR = 0xFF5500  # laranja SoundCloud
+PAUSA_YOUTUBE = 30 * 60  # depois de um bloqueio, vai direto para o SoundCloud por 30 min
+_youtube_bloqueado_ate = 0.0
+
+
+def youtube_bloqueado() -> bool:
+    return time.monotonic() < _youtube_bloqueado_ate
+
+
+def marcar_bloqueio():
+    global _youtube_bloqueado_ate
+    _youtube_bloqueado_ate = time.monotonic() + PAUSA_YOUTUBE
 
 
 class Tocador:
@@ -106,7 +118,9 @@ class Tocador:
                 faixa = await self._preparar(faixa)
             except Exception as erro:
                 log.warning("Falha ao tocar %s: %s", faixa.pagina, erro)
-                await self.avisar(embed=embeds.erro(f"Não consegui tocar **{faixa.titulo}**. Pulando..."))
+                motivo = ("o YouTube bloqueou o servidor e não achei essa música no SoundCloud"
+                          if faixa.fonte == "YouTube" else "o site não liberou o áudio")
+                await self.avisar(embed=embeds.erro(f"Não consegui tocar **{faixa.titulo}**: {motivo}. Pulando..."))
                 continue
 
             fonte = discord.FFmpegPCMAudio(faixa.stream, executable=FFMPEG,
@@ -127,16 +141,23 @@ class Tocador:
 
     async def _preparar(self, faixa: Faixa) -> Faixa:
         """Busca o áudio. Se o YouTube bloquear, procura a mesma música no SoundCloud."""
-        try:
-            return await asyncio.to_thread(extrair_stream, faixa)
-        except Exception:
-            if faixa.fonte != "YouTube":
-                raise
-            alternativas = await asyncio.to_thread(buscar, faixa.titulo, "soundcloud", faixa.pedido_por)
-            if not alternativas:
-                raise
-            await self.avisar(f"↪️ O YouTube não liberou **{faixa.titulo}**, tocando a versão do SoundCloud.")
-            return await asyncio.to_thread(extrair_stream, alternativas[0])
+        if faixa.fonte == "YouTube" and youtube_bloqueado():
+            erro_original = RuntimeError("YouTube bloqueado no momento")
+        else:
+            try:
+                return await asyncio.to_thread(extrair_stream, faixa)
+            except Exception as erro:
+                if faixa.fonte != "YouTube":
+                    raise
+                if bloqueio_do_youtube(erro):
+                    marcar_bloqueio()
+                erro_original = erro
+        alternativa = await asyncio.to_thread(buscar_parecida_soundcloud, faixa.titulo, faixa.pedido_por)
+        if alternativa is None:
+            raise erro_original
+        await self.avisar(f"↪️ O YouTube não liberou **{faixa.titulo}**, então achei no SoundCloud: "
+                          f"**{alternativa.titulo}**.")
+        return await asyncio.to_thread(extrair_stream, alternativa)
 
     def _terminou(self, erro: Optional[Exception]):
         if erro:
@@ -219,7 +240,8 @@ class Musica(commands.Cog, name="Música"):
     # ----- comandos -----
 
     @app_commands.command(name="tocar", description="Toca uma música (nome ou link do YouTube/SoundCloud).")
-    @app_commands.describe(busca="Nome da música ou link (playlists também)", fonte="Onde procurar quando é pelo nome")
+    @app_commands.describe(busca="Nome da música ou link (playlists também)",
+                           fonte="Onde procurar quando é pelo nome (padrão: SoundCloud)")
     @app_commands.choices(fonte=[Choice(name="YouTube", value="youtube"), Choice(name="SoundCloud", value="soundcloud")])
     @app_commands.guild_only()
     @app_commands.checks.cooldown(1, 3)
@@ -237,10 +259,15 @@ class Musica(commands.Cog, name="Música"):
             return await self._erro(interaction, f"A fila está cheia ({LIMITE_FILA} músicas).")
 
         await interaction.response.defer()
-        onde = fonte.value if fonte else "youtube"
+        if fonte:
+            onde = fonte.value
+        else:
+            onde = "youtube" if arquivo_cookies() and not youtube_bloqueado() else "soundcloud"
         try:
             faixas = await asyncio.to_thread(buscar, busca, onde, interaction.user.id)
-            if not faixas and onde == "youtube":
+            if not faixas and onde == "soundcloud" and not fonte:
+                faixas = await asyncio.to_thread(buscar, busca, "youtube", interaction.user.id)
+            elif not faixas and onde == "youtube":
                 faixas = await asyncio.to_thread(buscar, busca, "soundcloud", interaction.user.id)
         except Exception as erro:
             log.warning("Busca falhou (%s): %s", busca, erro)

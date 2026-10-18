@@ -60,6 +60,16 @@ Toca músicas do **YouTube** e do **SoundCloud** no canal de voz, por nome ou li
 | `/ppt` | Pedra, papel e tesoura contra o bot, com aposta opcional. |
 | `/batalha` | Batalha 1x1 por turnos (atacar, especial, defender e curar), com convite e aposta opcional. Quem demorar mais de 60s na vez perde. |
 
+### Truco Paulista 🃏
+`/truco` em **1x1** (contra alguém ou contra o bot) ou **2x2** (sala com times; vagas vazias viram bots).
+
+- Vira e manilha (♦ < ♠ < ♥ < ♣ zap), 3 rodadas por mão, empates ("cangou") e partida até 12.
+- **Truco, seis, nove e doze** com aceitar, correr ou aumentar.
+- **Mão de onze** (o time vê as cartas e decide; no 2x2 vê as do parceiro) e **mão de ferro** (11 a 11).
+- As cartas de cada um aparecem só para ele (botão 🃏 Minhas cartas).
+- Aposta opcional: o time vencedor leva tudo. Quem demorar mais de 2 minutos na vez perde.
+- O bot joga com regras próprias e às vezes **blefa** pedindo truco com mão ruim.
+
 ### Cassino
 | Comando | O que faz |
 |---|---|

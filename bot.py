@@ -102,6 +102,11 @@ class HarleBot(commands.Bot):
         await self.db.close()
         await super().close()
 
+    async def eh_dono(self, usuario: discord.abc.User) -> bool:
+        """Dono do bot = dono do aplicativo no Developer Portal, ou IDs na variável DONOS_DO_BOT."""
+        extras = {int(x) for x in os.getenv("DONOS_DO_BOT", "").replace(" ", "").split(",") if x.isdigit()}
+        return usuario.id in extras or await self.is_owner(usuario)
+
     async def enviar_log(self, guild: discord.Guild, embed: discord.Embed):
         """Manda um registro para o canal de logs do servidor, se houver um configurado."""
         canal_id = await self.db.get_log_channel(guild.id)

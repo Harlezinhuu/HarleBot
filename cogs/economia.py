@@ -205,13 +205,15 @@ class Economia(commands.Cog, name="Economia"):
         else:
             await interaction.response.send_message(embed=embeds.erro("Esse cargo não estava na loja."), ephemeral=True)
 
-    @app_commands.command(name="dar-moedas", description="Dá (ou tira, com número negativo) moedas de alguém.")
+    @app_commands.command(name="dar-moedas", description="(Só o dono do bot) Dá ou tira moedas de alguém.")
     @app_commands.describe(membro="Quem vai receber", quantidade="Quanto dar. Use negativo para tirar.")
     @app_commands.guild_only()
-    @app_commands.default_permissions(manage_guild=True)
-    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.default_permissions(administrator=True)  # esconde o comando de quem não é administrador
     async def dar_moedas(self, interaction: discord.Interaction, membro: discord.Member,
                          quantidade: app_commands.Range[int, -100_000_000, 100_000_000]):
+        if not await self.bot.eh_dono(interaction.user):
+            return await interaction.response.send_message(
+                embed=embeds.erro("Só o dono do bot pode usar esse comando."), ephemeral=True)
         if membro.bot:
             return await interaction.response.send_message(embed=embeds.erro("Bots não têm carteira."), ephemeral=True)
         saldo = await self.db.add_coins(interaction.guild.id, membro.id, quantidade)

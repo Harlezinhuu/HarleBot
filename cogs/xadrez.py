@@ -1,5 +1,6 @@
 """Xadrez no Discord: contra alguém ou contra o bot, com tabuleiro desenhado em imagem."""
 import asyncio
+import concurrent.futures
 import random
 import time
 from dataclasses import dataclass
@@ -13,6 +14,15 @@ from discord.ext import commands
 
 from utils import embeds, moeda
 from utils.xadrez import NOME_PECA, NIVEIS, SIMBOLO, bot_aceita_empate, desenhar, ler_lance, lance_em_portugues, melhor_lance
+
+# O bot pensa num processo separado: assim, enquanto ele calcula, o resto do Harle Bot continua respondendo.
+_PENSADOR = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+
+
+def _pensar(fen: str, nivel: str) -> str:
+    """Roda no processo separado (recebe e devolve texto para ser rápido de transferir)."""
+    return melhor_lance(chess.Board(fen), nivel, limite_segundos=4.0).uci()
+
 
 TEMPO_PARA_JOGAR = 300   # 5 minutos sem jogar = derrota
 COR = 0x779556
@@ -102,24 +112,25 @@ class PartidaXadrez:
         e.set_image(url="attachment://tabuleiro.png")
         return e
 
-    def payload(self) -> Dict:
+    async def payload(self) -> Dict:
         if not self.encerrada:
             self.view.montar()
-        arquivo = discord.File(desenhar(self.tabuleiro, self.perspectiva()), filename="tabuleiro.png")
+        imagem = await asyncio.to_thread(desenhar, self.tabuleiro.copy(), self.perspectiva())
+        arquivo = discord.File(imagem, filename="tabuleiro.png")
         return {"content": None, "embed": self.embed(), "attachments": [arquivo],
                 "view": None if self.encerrada else self.view}
 
     async def atualizar(self):
         if self.mensagem:
             try:
-                await self.mensagem.edit(**self.payload())
+                await self.mensagem.edit(**(await self.payload()))
             except discord.HTTPException:
                 pass
 
     # ----- fluxo -----
 
     async def comecar(self, interaction: discord.Interaction, nova_mensagem: bool):
-        dados = self.payload()
+        dados = await self.payload()
         if nova_mensagem:
             arquivo = dados.pop("attachments")[0]
             dados.pop("content")
@@ -137,11 +148,17 @@ class PartidaXadrez:
 
     async def _vez_do_bot(self):
         await asyncio.sleep(0.6)
-        async with self.trava:
-            if self.encerrada or not self.da_vez.bot:
+        if self.encerrada or not self.da_vez.bot:
+            return
+        fen = self.tabuleiro.fen()
+        try:
+            uci = await asyncio.get_running_loop().run_in_executor(_PENSADOR, _pensar, fen, self.nivel)
+        except Exception:
+            uci = (await asyncio.to_thread(melhor_lance, chess.Board(fen), "facil")).uci()
+        async with self.trava:   # só trava para aplicar o lance, não enquanto pensa
+            if self.encerrada or not self.da_vez.bot or self.tabuleiro.fen() != fen:
                 return
-            lance = await asyncio.to_thread(melhor_lance, self.tabuleiro.copy(), self.nivel)
-            self._aplicar(lance)
+            self._aplicar(chess.Move.from_uci(uci))
         await self._depois_do_lance()
 
     def _aplicar(self, lance: chess.Move):
@@ -163,8 +180,8 @@ class PartidaXadrez:
             fim = self._verificar_fim()
             if fim:
                 await self._finalizar(*fim)
-                return await interaction.response.edit_message(**self.payload())
-            await interaction.response.edit_message(**self.payload())
+                return await interaction.response.edit_message(**(await self.payload()))
+            await interaction.response.edit_message(**(await self.payload()))
         self.agendar_bot()
 
     async def _depois_do_lance(self):
@@ -216,7 +233,7 @@ class PartidaXadrez:
             if self.encerrada:
                 return await interaction.response.defer()
             await self._finalizar(not cor, f"{self.jogador(cor).nome} desistiu.")
-            await interaction.response.edit_message(**self.payload())
+            await interaction.response.edit_message(**(await self.payload()))
 
     async def _vigiar(self):
         while not self.encerrada:
@@ -332,7 +349,7 @@ class TabuleiroView(discord.ui.View):
             if bot_aceita_empate(p.tabuleiro, cor_bot):
                 async with p.trava:
                     await p._finalizar(None, "Empate combinado.")
-                    return await interaction.response.edit_message(**p.payload())
+                    return await interaction.response.edit_message(**(await p.payload()))
             return await interaction.response.send_message("🤖 O bot recusou o empate. Ele acha que está bem!",
                                                            ephemeral=True)
         p.empate_proposto_por = cor
@@ -345,7 +362,7 @@ class TabuleiroView(discord.ui.View):
             return await interaction.response.send_message("Quem aceita é o outro jogador.", ephemeral=True)
         async with p.trava:
             await p._finalizar(None, "Empate combinado.")
-            await interaction.response.edit_message(**p.payload())
+            await interaction.response.edit_message(**(await p.payload()))
 
     async def recusar_empate(self, interaction: discord.Interaction):
         p = self.partida

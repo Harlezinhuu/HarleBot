@@ -113,7 +113,7 @@ def desenhar(tabuleiro: chess.Board, de_baixo: chess.Color = chess.WHITE) -> io.
         d.text((MARGEM / 2, centro), numero, font=fonte_coord, anchor="mm", fill=(200, 205, 210))
 
     saida = io.BytesIO()
-    img.save(saida, "PNG", optimize=True)
+    img.save(saida, "PNG")
     saida.seek(0)
     return saida
 

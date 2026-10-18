@@ -11,7 +11,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from core.db import Database
-from utils import embeds
+from utils import embeds, resposta_rapida
 
 log = logging.getLogger("harle")
 
@@ -64,6 +64,7 @@ class HarleBot(commands.Bot):
         )
         self.db = Database(os.getenv("DB_PATH") or "data/harle.db")
         self.tree.on_error = self.erro_de_comando
+        resposta_rapida.instalar(self)  # evita "O aplicativo não respondeu" quando o servidor está lento
 
     async def setup_hook(self):
         await self.db.connect()

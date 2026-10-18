@@ -115,6 +115,10 @@ class Database:
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = await aiosqlite.connect(self.path)
         self.conn.row_factory = aiosqlite.Row
+        if self.path != ":memory:":
+            # WAL + synchronous NORMAL: gravações bem mais rápidas, sem perder segurança na prática
+            await self.conn.execute("PRAGMA journal_mode=WAL")
+            await self.conn.execute("PRAGMA synchronous=NORMAL")
         await self.conn.executescript(SCHEMA)
         await self.conn.commit()
 

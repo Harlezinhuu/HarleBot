@@ -43,9 +43,18 @@ async def _adiar(self: discord.InteractionResponse, *args, **kwargs):
     return await _adiar_original(self, *args, **kwargs)
 
 
-async def _vigiar(interacao: discord.Interaction):
+async def _vigiar(interacao: discord.Interaction, bot: discord.Client):
     await asyncio.sleep(ESPERA)
     if interacao.response.is_done():
+        return
+    # Ninguém respondeu em 2s. Se o botão é de um jogo que não existe mais, avisa; senão, adia.
+    if interacao.type == discord.InteractionType.component and _botao_sem_dono(bot, interacao):
+        try:
+            await _enviar_original(interacao.response,
+                                   "⌛ Esse jogo não está mais ativo (ele acabou ou o bot reiniciou). "
+                                   "Comece outro com o comando!", ephemeral=True)
+        except discord.HTTPException:
+            pass
         return
     try:
         interacao.extras[_CHAVE] = True
@@ -86,13 +95,5 @@ def instalar(bot: discord.Client):
 
     @bot.listen("on_interaction")
     async def _ao_receber(interacao: discord.Interaction):
-        if interacao.type == discord.InteractionType.component and _botao_sem_dono(bot, interacao):
-            try:
-                await _enviar_original(interacao.response,
-                                       "⌛ Esse jogo não está mais ativo (ele acabou ou o bot reiniciou). "
-                                       "Comece outro com o comando!", ephemeral=True)
-            except discord.HTTPException:
-                pass
-            return
         if interacao.type in (discord.InteractionType.application_command, discord.InteractionType.component):
-            asyncio.create_task(_vigiar(interacao))
+            asyncio.create_task(_vigiar(interacao, bot))

@@ -12,6 +12,7 @@ from utils.mensagens import mensagem_duravel
 
 APOSTA_MINIMA = 10
 APOSTA_MAXIMA = moeda.APOSTA_MAXIMA
+APOSTA_MAXIMA_BLACKJACK = 10_000_000  # o blackjack já tem vantagem da casa (a mesa joga por último)
 
 RESULTADOS_BJ = {
     "blackjack": ("🃏 BLACKJACK!", embeds.VERDE),
@@ -250,7 +251,7 @@ class Cassino(commands.Cog, name="Cassino"):
     @app_commands.guild_only()
     @app_commands.checks.cooldown(1, 5)
     async def blackjack(self, interaction: discord.Interaction,
-                        aposta: app_commands.Range[int, APOSTA_MINIMA, APOSTA_MAXIMA]):
+                        aposta: app_commands.Range[int, APOSTA_MINIMA, APOSTA_MAXIMA_BLACKJACK]):
         if not await self._cobrar(interaction, aposta):
             return
         view = BlackjackView(self.bot, interaction.guild.id, interaction.user, Blackjack(aposta, moeda.sorteio))

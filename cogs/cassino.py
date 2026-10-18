@@ -8,6 +8,7 @@ from discord.ext import commands
 
 from utils import embeds, moeda
 from utils.cassino import CASAS_MINAS, Blackjack, Minas, mostrar, valor_mao
+from utils.mensagens import mensagem_duravel
 
 APOSTA_MINIMA = 10
 APOSTA_MAXIMA = 10_000_000
@@ -256,7 +257,7 @@ class Cassino(commands.Cog, name="Cassino"):
         await view._pagar()  # se já saiu blackjack de cara, paga na hora
         view._atualizar_botoes()
         await interaction.response.send_message(embed=view.embed(), view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
     @app_commands.command(name="minas", description="Campo minado: abra casas para multiplicar a aposta. Saque antes da bomba!")
     @app_commands.describe(aposta="Quanto apostar", bombas="Quantas bombas (mais bombas = prêmio sobe mais rápido)")
@@ -275,7 +276,7 @@ class Cassino(commands.Cog, name="Cassino"):
         jogo = Minas(aposta, bombas.value if bombas else 3)
         view = MinasView(self.bot, interaction.guild.id, interaction.user, jogo)
         await interaction.response.send_message(embed=view.embed(), view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
 
 async def setup(bot):

@@ -8,6 +8,7 @@ from discord.ext import commands
 from utils import embeds, moeda
 from utils.batalha import VIDA_MAXIMA, Batalha, Lutador
 from utils.niveis import barra
+from utils.mensagens import mensagem_duravel
 
 TEMPO_POR_TURNO = 60  # segundos; quem demorar perde
 
@@ -207,7 +208,7 @@ class BatalhaCog(commands.Cog, name="Batalha"):
         convite = ConviteBatalha(self.bot, interaction.guild.id, interaction.user, oponente, aposta)
         await interaction.response.send_message(
             convite.texto(), view=convite, allowed_mentions=discord.AllowedMentions(users=[oponente]))
-        convite.mensagem = await interaction.original_response()
+        convite.mensagem = await mensagem_duravel(interaction)
 
 
 async def setup(bot):

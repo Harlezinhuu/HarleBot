@@ -14,6 +14,7 @@ from discord.ext import commands
 
 from utils import embeds, moeda
 from utils.xadrez import NOME_PECA, NIVEIS, SIMBOLO, bot_aceita_empate, desenhar, ler_lance, lance_em_portugues, melhor_lance
+from utils.mensagens import mensagem_duravel
 
 # O bot pensa num processo separado: assim, enquanto ele calcula, o resto do Harle Bot continua respondendo.
 _PENSADOR = concurrent.futures.ProcessPoolExecutor(max_workers=1)
@@ -113,9 +114,10 @@ class PartidaXadrez:
         return e
 
     async def payload(self) -> Dict:
+        # desenha primeiro e só depois troca os botões, para não deixar botões "soltos" enquanto desenha
+        imagem = await asyncio.to_thread(desenhar, self.tabuleiro.copy(), self.perspectiva())
         if not self.encerrada:
             self.view.montar()
-        imagem = await asyncio.to_thread(desenhar, self.tabuleiro.copy(), self.perspectiva())
         arquivo = discord.File(imagem, filename="tabuleiro.png")
         return {"content": None, "embed": self.embed(), "attachments": [arquivo],
                 "view": None if self.encerrada else self.view}
@@ -135,7 +137,7 @@ class PartidaXadrez:
             arquivo = dados.pop("attachments")[0]
             dados.pop("content")
             await interaction.response.send_message(file=arquivo, **dados)
-            self.mensagem = await interaction.original_response()
+            self.mensagem = await mensagem_duravel(interaction)
         else:
             await interaction.response.edit_message(**dados)
             self.mensagem = interaction.message
@@ -510,7 +512,7 @@ class XadrezCog(commands.Cog, name="Xadrez"):
         convite = ConviteXadrez(self, interaction.guild.id, eu, oponente, minha_cor, aposta)
         await interaction.response.send_message(convite.texto(), view=convite,
                                                 allowed_mentions=discord.AllowedMentions(users=[oponente]))
-        convite.mensagem = await interaction.original_response()
+        convite.mensagem = await mensagem_duravel(interaction)
 
 
 async def setup(bot):

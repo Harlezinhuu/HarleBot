@@ -11,6 +11,7 @@ from conteudo.itens import CATEGORIAS, ITENS, eh_consumivel, rotulo
 from utils import embeds, moeda
 from utils.jogos import sem_acento
 from utils.niveis import barra, nivel_de
+from utils.mensagens import mensagem_duravel
 
 LIMITE_SOBRE_MIM = 200
 
@@ -111,7 +112,7 @@ class Perfil(commands.Cog, name="Loja e Perfil"):
     async def loja(self, interaction: discord.Interaction):
         view = LojaView(self.bot, interaction, await self._possui(interaction.guild.id, interaction.user.id))
         await interaction.response.send_message(embed=await view.pagina("tema"), view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
     @app_commands.command(name="comprar", description="Compra um item ou cargo da loja.")
     @app_commands.describe(item="Comece a digitar o nome do item")

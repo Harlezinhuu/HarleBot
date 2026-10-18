@@ -65,6 +65,20 @@ async def _vigiar(interacao: discord.Interaction):
         log.warning("Não consegui adiar a resposta: %s", erro)
 
 
+def _botao_sem_dono(bot: discord.Client, interacao: discord.Interaction) -> bool:
+    """True se o botão/menu clicado é de um jogo que não existe mais (o bot reiniciou ou o jogo acabou)."""
+    try:
+        loja = bot._connection._view_store  # interno do discord.py; se mudar, só não avisa
+        chave = (interacao.data["component_type"], interacao.data["custom_id"])
+        itens = loja._views.get(interacao.message.id if interacao.message else None, {})
+        item = itens.get(chave) or loja._views.get(None, {}).get(chave)
+        if item is None and any(p.fullmatch(chave[1]) for p in loja._dynamic_items):
+            return False
+        return item is None or item.view is None
+    except Exception:
+        return False
+
+
 def instalar(bot: discord.Client):
     discord.InteractionResponse.send_message = _enviar
     discord.InteractionResponse.edit_message = _editar
@@ -72,5 +86,13 @@ def instalar(bot: discord.Client):
 
     @bot.listen("on_interaction")
     async def _ao_receber(interacao: discord.Interaction):
+        if interacao.type == discord.InteractionType.component and _botao_sem_dono(bot, interacao):
+            try:
+                await _enviar_original(interacao.response,
+                                       "⌛ Esse jogo não está mais ativo (ele acabou ou o bot reiniciou). "
+                                       "Comece outro com o comando!", ephemeral=True)
+            except discord.HTTPException:
+                pass
+            return
         if interacao.type in (discord.InteractionType.application_command, discord.InteractionType.component):
             asyncio.create_task(_vigiar(interacao))

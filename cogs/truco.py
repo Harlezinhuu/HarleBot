@@ -12,6 +12,7 @@ from discord.ext import commands
 
 from utils import embeds, moeda, truco_ia
 from utils.truco import EMPATE, NOME_PEDIDO, Carta, JogadaInvalida, Truco
+from utils.mensagens import mensagem_duravel
 
 TEMPO_PARA_AGIR = 120     # segundos; quem demorar mais que isso perde a partida
 PAUSA_DO_BOT = 1.3        # segundos entre as jogadas dos bots, para dar para acompanhar
@@ -132,7 +133,7 @@ class Partida:
         self.view.montar()
         if ja_respondeu:
             await interaction.edit_original_response(content=self.texto_vez(), embed=self.embed(), view=self.view)
-            self.mensagem = await interaction.original_response()
+            self.mensagem = await mensagem_duravel(interaction)
         else:
             await interaction.response.edit_message(content=self.texto_vez(), embed=self.embed(), view=self.view)
             self.mensagem = interaction.message
@@ -608,7 +609,7 @@ class TrucoCog(commands.Cog, name="Truco"):
         if modo.value == "2x2":
             sala = LobbyTruco(self, interaction.guild.id, eu, aposta)
             await interaction.response.send_message(embed=sala.embed(), view=sala)
-            sala.mensagem = await interaction.original_response()
+            sala.mensagem = await mensagem_duravel(interaction)
             return
 
         if oponente is None or oponente.id == self.bot.user.id:
@@ -621,7 +622,7 @@ class TrucoCog(commands.Cog, name="Truco"):
         convite = ConviteTruco(self, interaction.guild.id, eu, oponente, aposta)
         await interaction.response.send_message(convite.texto(), view=convite,
                                                 allowed_mentions=discord.AllowedMentions(users=[oponente]))
-        convite.mensagem = await interaction.original_response()
+        convite.mensagem = await mensagem_duravel(interaction)
 
 
 async def setup(bot):

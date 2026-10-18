@@ -11,6 +11,7 @@ from conteudo.palavras import PALAVRAS
 from conteudo.perguntas import PERGUNTAS
 from utils import embeds, moeda
 from utils.jogos import DESENHOS, MAX_ERROS, Forca, jogada_do_bot, resultado_ppt, vencedor_velha
+from utils.mensagens import mensagem_duravel
 
 PREMIO_QUIZ = 50
 PREMIO_FORCA_LETRA = 80
@@ -415,7 +416,7 @@ class Jogos(commands.Cog, name="Jogos"):
                           color=embeds.AZUL)
         e.set_footer(text=f"30 segundos · cada pessoa tem uma chance · vale {PREMIO_QUIZ} {moeda.NOME}")
         await interaction.response.send_message(embed=e, view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
     @app_commands.command(name="forca", description="Jogo da forca. Todo mundo do canal pode ajudar a descobrir!")
     @app_commands.guild_only()
@@ -425,7 +426,7 @@ class Jogos(commands.Cog, name="Jogos"):
         jogo = Forca(random.choice(PALAVRAS[categoria]), categoria)
         view = ForcaView(self.bot, interaction.user, jogo)
         await interaction.response.send_message(embed=view.embed("Use os botões para chutar."), view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
     @app_commands.command(name="velha", description="Jogo da velha contra alguém (com convite) ou contra mim.")
     @app_commands.describe(oponente="Quem desafiar (vazio = jogar contra o bot)",
@@ -448,7 +449,7 @@ class Jogos(commands.Cog, name="Jogos"):
             convite = ConviteVelha(self.bot, interaction.user, oponente)
             await interaction.response.send_message(
                 convite.texto(), view=convite, allowed_mentions=discord.AllowedMentions(users=[oponente]))
-            convite.mensagem = await interaction.original_response()
+            convite.mensagem = await mensagem_duravel(interaction)
             return
 
         nivel = dificuldade.value if dificuldade else "medio"
@@ -457,7 +458,7 @@ class Jogos(commands.Cog, name="Jogos"):
         dica = (f"\nGanhe de mim e leve {moeda.fmt(premio_vitoria)}!" if premio_vitoria
                 else f"\nNinguém ganha de mim aqui. Empate e leve {moeda.fmt(premio_empate)}!")
         await interaction.response.send_message(view.texto() + dica, view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
     @app_commands.command(name="ppt", description="Pedra, papel e tesoura contra mim, com aposta opcional.")
     @app_commands.describe(aposta=f"Quanto apostar em {moeda.NOME} (opcional)")
@@ -472,7 +473,7 @@ class Jogos(commands.Cog, name="Jogos"):
         texto = "Escolha sua jogada!" + (f"\nAposta: {moeda.fmt(aposta)}" if aposta else "")
         await interaction.response.send_message(
             embed=discord.Embed(title="Pedra, papel e tesoura", description=texto, color=embeds.AZUL), view=view)
-        view.mensagem = await interaction.original_response()
+        view.mensagem = await mensagem_duravel(interaction)
 
 
 async def setup(bot):

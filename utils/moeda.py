@@ -3,7 +3,7 @@
 import random
 
 NOME = "Harlecoins"
-APOSTA_MAXIMA = 50_000          # limite por aposta, para a economia não explodir
+APOSTA_MAXIMA = 10_000_000      # na prática sem limite (o Discord exige um número máximo)
 sorteio = random.SystemRandom()  # sorteio usando a aleatoriedade do sistema operacional
 EMOJI = "🪙"
 

@@ -12,7 +12,7 @@ from utils.mensagens import mensagem_duravel
 
 APOSTA_MINIMA = 10
 APOSTA_MAXIMA = moeda.APOSTA_MAXIMA
-APOSTA_MAXIMA_BLACKJACK = 10_000_000  # o blackjack já tem vantagem da casa (a mesa joga por último)
+APOSTA_MAXIMA_BLACKJACK = APOSTA_MAXIMA
 
 RESULTADOS_BJ = {
     "blackjack": ("🃏 BLACKJACK!", embeds.VERDE),

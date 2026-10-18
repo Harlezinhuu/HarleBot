@@ -18,6 +18,7 @@ DAILY_BONUS_POR_DIA = 25   # cada dia seguido soma isso...
 DAILY_BONUS_MAXIMO = 10    # ...até 10 dias seguidos
 TRABALHO_MIN, TRABALHO_MAX = 60, 160
 APOSTA_MINIMA = 10
+CHANCE_DE_GANHAR = 0.48   # cara ou coroa com 2% de vantagem da casa (igual cassino de verdade)
 
 TRABALHOS = [
     "consertou o PC de um amigo",
@@ -109,7 +110,7 @@ class Economia(commands.Cog, name="Economia"):
             return await interaction.response.send_message(
                 embed=embeds.erro(f"Você está cansado. Descanse mais **{_relogio(falta)}**."), ephemeral=True)
 
-        ganho = random.randint(TRABALHO_MIN, TRABALHO_MAX)
+        ganho = moeda.sorteio.randint(TRABALHO_MIN, TRABALHO_MAX)
         dobro = await self.db.boost_until(interaction.guild.id, interaction.user.id, "boost_trabalho") > agora
         if dobro:
             ganho *= 2
@@ -134,19 +135,21 @@ class Economia(commands.Cog, name="Economia"):
         await interaction.response.send_message(
             embed=embeds.sucesso(f"{interaction.user.mention} mandou {moeda.fmt(quantidade)} para {membro.mention}."))
 
-    @app_commands.command(name="apostar", description="Cara ou coroa: acertou, dobra a aposta. Errou, perde.")
+    @app_commands.command(name="apostar", description="Cara ou coroa: acertou, dobra a aposta (48% de chance). Errou, perde.")
     @app_commands.describe(quantidade="Quanto apostar", lado="Cara ou coroa?")
     @app_commands.choices(lado=[Choice(name="Cara", value="cara"), Choice(name="Coroa", value="coroa")])
     @app_commands.guild_only()
     @app_commands.checks.cooldown(1, 5)
     async def apostar(self, interaction: discord.Interaction,
-                      quantidade: app_commands.Range[int, APOSTA_MINIMA, 10_000_000], lado: Choice[str]):
+                      quantidade: app_commands.Range[int, APOSTA_MINIMA, moeda.APOSTA_MAXIMA], lado: Choice[str]):
         if not await self.db.spend_coins(interaction.guild.id, interaction.user.id, quantidade):
             return await interaction.response.send_message(
                 embed=embeds.erro("Você não tem moedas suficientes para essa aposta."), ephemeral=True)
 
-        caiu = random.choice(["cara", "coroa"])
-        if caiu == lado.value:
+        ganhou = moeda.sorteio.random() < CHANCE_DE_GANHAR
+        outro = "coroa" if lado.value == "cara" else "cara"
+        caiu = lado.value if ganhou else outro
+        if ganhou:
             saldo = await self.db.add_coins(interaction.guild.id, interaction.user.id, quantidade * 2)
             e = discord.Embed(color=embeds.VERDE, title=f"🪙 Deu {caiu}! Você ganhou!",
                               description=f"Você levou {moeda.fmt(quantidade * 2)}.")

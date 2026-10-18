@@ -197,7 +197,7 @@ class BatalhaCog(commands.Cog, name="Batalha"):
     @app_commands.guild_only()
     @app_commands.checks.cooldown(1, 10)
     async def batalha(self, interaction: discord.Interaction, oponente: discord.Member,
-                      aposta: Optional[app_commands.Range[int, 1, 10_000_000]] = None):
+                      aposta: Optional[app_commands.Range[int, 1, moeda.APOSTA_MAXIMA]] = None):
         if oponente.bot or oponente.id == interaction.user.id:
             return await interaction.response.send_message(
                 embed=embeds.erro("Escolha outra pessoa (que não seja um bot)."), ephemeral=True)

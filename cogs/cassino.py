@@ -11,7 +11,7 @@ from utils.cassino import CASAS_MINAS, Blackjack, Minas, mostrar, valor_mao
 from utils.mensagens import mensagem_duravel
 
 APOSTA_MINIMA = 10
-APOSTA_MAXIMA = 10_000_000
+APOSTA_MAXIMA = moeda.APOSTA_MAXIMA
 
 RESULTADOS_BJ = {
     "blackjack": ("🃏 BLACKJACK!", embeds.VERDE),
@@ -253,7 +253,7 @@ class Cassino(commands.Cog, name="Cassino"):
                         aposta: app_commands.Range[int, APOSTA_MINIMA, APOSTA_MAXIMA]):
         if not await self._cobrar(interaction, aposta):
             return
-        view = BlackjackView(self.bot, interaction.guild.id, interaction.user, Blackjack(aposta))
+        view = BlackjackView(self.bot, interaction.guild.id, interaction.user, Blackjack(aposta, moeda.sorteio))
         await view._pagar()  # se já saiu blackjack de cara, paga na hora
         view._atualizar_botoes()
         await interaction.response.send_message(embed=view.embed(), view=view)
@@ -273,7 +273,7 @@ class Cassino(commands.Cog, name="Cassino"):
                     bombas: Optional[Choice[int]] = None):
         if not await self._cobrar(interaction, aposta):
             return
-        jogo = Minas(aposta, bombas.value if bombas else 3)
+        jogo = Minas(aposta, bombas.value if bombas else 3, moeda.sorteio)
         view = MinasView(self.bot, interaction.guild.id, interaction.user, jogo)
         await interaction.response.send_message(embed=view.embed(), view=view)
         view.mensagem = await mensagem_duravel(interaction)

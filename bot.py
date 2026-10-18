@@ -123,7 +123,8 @@ class HarleBot(commands.Bot):
         elif isinstance(error, app_commands.TransformerError):
             texto = "Não encontrei isso que você colocou. Confira se o usuário ou canal existe."
         elif isinstance(error, app_commands.CommandOnCooldown):
-            texto = f"Calma! Tente de novo em {error.retry_after:.0f} segundos."
+            segundos = max(1, round(error.retry_after))
+            texto = f"Calma! Tente de novo em {segundos} {'segundo' if segundos == 1 else 'segundos'}."
         elif isinstance(error, app_commands.CommandInvokeError) and isinstance(error.original, discord.Forbidden):
             texto = ("O Discord não me deixou fazer isso. Confira se o meu cargo está acima do cargo "
                      "da pessoa e se eu tenho as permissões necessárias.")

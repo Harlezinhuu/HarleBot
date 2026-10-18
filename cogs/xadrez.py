@@ -483,7 +483,7 @@ class XadrezCog(commands.Cog, name="Xadrez"):
     @app_commands.checks.cooldown(1, 10)
     async def xadrez(self, interaction: discord.Interaction, oponente: Optional[discord.Member] = None,
                      cor: Optional[Choice[str]] = None, dificuldade: Optional[Choice[str]] = None,
-                     aposta: Optional[app_commands.Range[int, 1, 10_000_000]] = None):
+                     aposta: Optional[app_commands.Range[int, 1, moeda.APOSTA_MAXIMA]] = None):
         eu = interaction.user
         aposta = aposta or 0
         if self.ocupado(eu.id):

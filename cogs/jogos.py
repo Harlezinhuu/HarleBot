@@ -366,7 +366,7 @@ class PPTView(discord.ui.View):
             return
         self.jogou = True
         self.stop()
-        bot_escolheu = random.choice(list(EMOJIS_PPT))
+        bot_escolheu = moeda.sorteio.choice(list(EMOJIS_PPT))
         resultado = resultado_ppt(escolha, bot_escolheu)
         g, u = self.guild_id, self.jogador.id
 
@@ -464,7 +464,7 @@ class Jogos(commands.Cog, name="Jogos"):
     @app_commands.describe(aposta=f"Quanto apostar em {moeda.NOME} (opcional)")
     @app_commands.guild_only()
     @app_commands.checks.cooldown(1, 5)
-    async def ppt(self, interaction: discord.Interaction, aposta: Optional[app_commands.Range[int, 1, 10_000_000]] = None):
+    async def ppt(self, interaction: discord.Interaction, aposta: Optional[app_commands.Range[int, 1, moeda.APOSTA_MAXIMA]] = None):
         aposta = aposta or 0
         if aposta and not await self.bot.db.spend_coins(interaction.guild.id, interaction.user.id, aposta):
             return await interaction.response.send_message(

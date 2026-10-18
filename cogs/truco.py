@@ -589,7 +589,7 @@ class TrucoCog(commands.Cog, name="Truco"):
     @app_commands.checks.cooldown(1, 10)
     async def truco(self, interaction: discord.Interaction, modo: Choice[str],
                     oponente: Optional[discord.Member] = None,
-                    aposta: Optional[app_commands.Range[int, 1, 10_000_000]] = None):
+                    aposta: Optional[app_commands.Range[int, 1, moeda.APOSTA_MAXIMA]] = None):
         aposta = aposta or 0
         eu = interaction.user
         if self.ocupado(eu.id):

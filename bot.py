@@ -28,6 +28,7 @@ COGS = [
     "cogs.cassino",
     "cogs.batalha",
     "cogs.truco",
+    "cogs.xadrez",
     # "cogs.musica",  # desligada por enquanto (YouTube bloqueia servidores na nuvem). Veja o README.
     "cogs.status",
 ]

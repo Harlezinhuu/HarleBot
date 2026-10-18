@@ -70,6 +70,15 @@ Toca músicas do **YouTube** e do **SoundCloud** no canal de voz, por nome ou li
 - Aposta opcional: o time vencedor leva tudo. Quem demorar mais de 2 minutos na vez perde.
 - O bot joga com regras próprias e às vezes **blefa** pedindo truco com mão ruim.
 
+### Xadrez ♟️
+`/xadrez` contra alguém (com convite) ou contra o bot (fácil, médio ou difícil), com aposta opcional.
+
+- O tabuleiro é desenhado em imagem a cada lance, com o último lance destacado e o rei em xeque marcado.
+- Para jogar, escolha a **peça** e a **casa** nos menus, ou digite o lance (`e4`, `Cf3`, `O-O`, `e8=D`).
+- Todas as regras (roque, en passant, promoção, mate, afogamento, repetição, 50 lances) via `python-chess`.
+- Botões de propor empate e desistir. 5 minutos sem jogar = derrota.
+- Fonte das peças: DejaVu Sans (licença em `assets/fontes/`).
+
 ### Cassino
 | Comando | O que faz |
 |---|---|

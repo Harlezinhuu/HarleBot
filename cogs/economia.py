@@ -9,6 +9,7 @@ from discord.app_commands import Choice
 from discord.ext import commands
 
 from utils import embeds, moeda
+from cogs.conquistas import registrar_depois
 
 DIA = 86400
 HORA = 3600
@@ -88,6 +89,10 @@ class Economia(commands.Cog, name="Economia"):
             ganho *= 2
         await self.db.set_daily(interaction.guild.id, interaction.user.id, agora, streak)
         saldo = await self.db.add_coins(interaction.guild.id, interaction.user.id, ganho)
+        registrar_depois(self.bot, interaction.guild.id, interaction.user.id, "max_daily_sequencia", maximo=streak,
+                         canal=interaction.channel)
+        registrar_depois(self.bot, interaction.guild.id, interaction.user.id, "max_moedas", maximo=saldo,
+                         canal=interaction.channel)
 
         e = discord.Embed(title="🎁 Daily coletado!", color=embeds.VERDE,
                           description=f"Você ganhou {moeda.fmt(ganho)}.")
@@ -151,6 +156,8 @@ class Economia(commands.Cog, name="Economia"):
         caiu = lado.value if ganhou else outro
         if ganhou:
             saldo = await self.db.add_coins(interaction.guild.id, interaction.user.id, quantidade * 2)
+            registrar_depois(self.bot, interaction.guild.id, interaction.user.id, "max_moedas", maximo=saldo,
+                             canal=interaction.channel)
             e = discord.Embed(color=embeds.VERDE, title=f"🪙 Deu {caiu}! Você ganhou!",
                               description=f"Você levou {moeda.fmt(quantidade * 2)}.")
         else:

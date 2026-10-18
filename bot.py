@@ -23,6 +23,8 @@ COGS = [
     "cogs.registros",
     "cogs.protecao",
     "cogs.cargos",
+    "cogs.comunidade",
+    "cogs.conquistas",
     "cogs.economia",
     "cogs.perfil",
     "cogs.niveis",

@@ -9,6 +9,7 @@ from utils import embeds, moeda
 from utils.batalha import VIDA_MAXIMA, Batalha, Lutador
 from utils.niveis import barra
 from utils.mensagens import mensagem_duravel
+from cogs.conquistas import registrar_depois
 
 TEMPO_POR_TURNO = 60  # segundos; quem demorar perde
 
@@ -64,6 +65,8 @@ class BatalhaView(discord.ui.View):
             return ""
         self.pago = True
         self.stop()
+        registrar_depois(self.bot, self.guild_id, self.batalha.vencedor.uid, "batalha_vitorias",
+                         canal=getattr(self.mensagem, "channel", None))
         if self.aposta:
             await self.bot.db.add_coins(self.guild_id, self.batalha.vencedor.uid, self.aposta * 2)
             return f"{self.batalha.vencedor.nome} levou {self.aposta * 2:,} {moeda.NOME}!".replace(",", ".")

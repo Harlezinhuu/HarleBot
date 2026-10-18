@@ -9,6 +9,7 @@ from discord.ext import commands
 from utils import embeds, moeda
 from utils.cassino import CASAS_MINAS, Blackjack, Minas, mostrar, valor_mao
 from utils.mensagens import mensagem_duravel
+from cogs.conquistas import registrar_depois
 
 APOSTA_MINIMA = 10
 APOSTA_MAXIMA = moeda.APOSTA_MAXIMA
@@ -67,7 +68,13 @@ class BlackjackView(discord.ui.View):
             self.pago = True
             self.stop()
             if self.jogo.pagamento:
-                await self.bot.db.add_coins(self.guild_id, self.jogador.id, self.jogo.pagamento)
+                saldo = await self.bot.db.add_coins(self.guild_id, self.jogador.id, self.jogo.pagamento)
+                registrar_depois(self.bot, self.guild_id, self.jogador.id, "max_moedas", maximo=saldo)
+            canal = getattr(self.mensagem, "channel", None)
+            if self.jogo.resultado in ("blackjack", "vitoria"):
+                registrar_depois(self.bot, self.guild_id, self.jogador.id, "blackjack_vitorias", canal=canal)
+            if self.jogo.resultado == "blackjack":
+                registrar_depois(self.bot, self.guild_id, self.jogador.id, "blackjack_naturais", canal=canal)
 
     async def _responder(self, interaction: discord.Interaction):
         await self._pagar()
@@ -192,6 +199,7 @@ class MinasView(discord.ui.View):
         if resultado == "limpou":
             premio = self.jogo.premio_atual
             await self.bot.db.add_coins(self.guild_id, self.jogador.id, premio)
+            registrar_depois(self.bot, self.guild_id, self.jogador.id, "minas_limpou", canal=interaction.channel)
             self.stop()
             self._revelar_tudo()
             e = self.embed("🏆 Campo limpo! Você abriu todas as casas.", embeds.VERDE)

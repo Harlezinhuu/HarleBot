@@ -106,7 +106,7 @@ Itens comprados com Harlecoins para personalizar o perfil, no estilo da Loritta.
 | `/comprar` | Compra um item (é só começar a digitar o nome ou a categoria). |
 | `/inventario` | Seus itens e boosts ativos. |
 | `/usar` | Equipa um tema ou título, ou ativa um boost. |
-| `/perfil` | Perfil com tema, título, "sobre mim", insígnias, nível e moedas. |
+| `/perfil` | **Card em imagem** com avatar, tema, título, "sobre mim", nível, moedas, insígnias e conquistas. |
 | `/sobremim` | Escreve o texto do seu perfil. |
 
 - **Temas** mudam a cor e o emoji do perfil (Neon, Sakura, Galáxia, Ouro...).
@@ -115,6 +115,11 @@ Itens comprados com Harlecoins para personalizar o perfil, no estilo da Loritta.
 - **Boosts**: XP em dobro e salário em dobro por 1 hora, e daily em dobro.
 
 Para criar itens novos, é só editar `conteudo/itens.py`.
+
+### Conquistas 🏅
+21 conquistas que se ganha jogando (vencer truco, dar mate no xadrez, tirar blackjack, chegar no nível 25,
+juntar 1 milhão...). Cada uma dá Harlecoins e aparece no perfil. `/conquistas` mostra o progresso.
+Para criar novas, edite `conteudo/conquistas.py`.
 
 ### Níveis
 Cada mensagem no chat dá XP (no máximo uma vez por minuto, para não valer spam).
@@ -143,6 +148,14 @@ criadas há poucos dias. Tudo é registrado no canal de `/config-logs`.
 ### Painéis de cargos 🎭
 No estilo Carl-bot: `/cargos criar` (por **botões** ou **reações**, com opção de escolha única),
 `/cargos adicionar` e `/cargos remover`. Os botões continuam funcionando mesmo depois de o bot reiniciar.
+
+### Comunidade 💬
+- **Boas-vindas com imagem** (`/boasvindas configurar`, `testar`, `desligar`): card com o avatar de quem entrou,
+  mensagem personalizada (`{membro}`, `{nome}`, `{servidor}`, `{numero}`) e cargo automático opcional.
+- **Sorteios** (`/sorteio criar`, `encerrar`, `ressortear`): botão de participar, tempo, vários vencedores, e
+  entrega automática de Harlecoins ou cargo. Continuam funcionando mesmo se o bot reiniciar.
+- **Tickets** (`/ticket painel`): botão que cria um canal privado entre o membro e a equipe de suporte. Ao fechar,
+  a conversa vai em `.txt` para o canal de registros.
 
 ### Registros
 Com `/config-logs #canal`, o bot anota nesse canal: punições, limpezas, mensagens apagadas

@@ -13,6 +13,7 @@ from discord.ext import commands
 from utils import embeds, moeda, truco_ia
 from utils.truco import EMPATE, NOME_PEDIDO, Carta, JogadaInvalida, Truco
 from utils.mensagens import mensagem_duravel
+from cogs.conquistas import registrar_depois
 
 TEMPO_PARA_AGIR = 120     # segundos; quem demorar mais que isso perde a partida
 PAUSA_DO_BOT = 1.3        # segundos entre as jogadas dos bots, para dar para acompanhar
@@ -219,6 +220,9 @@ class Partida:
         vencedor = self.jogo.vencedor
         premiados = [self.jogadores[i] for i in self.membros_do_time(vencedor) if not self.jogadores[i].bot]
         texto_premio = ""
+        for p in premiados:
+            registrar_depois(self.bot, self.guild_id, p.id, "truco_vitorias",
+                             canal=getattr(self.mensagem, "channel", None))
         if self.aposta and premiados:
             pote = self.aposta * len(self.jogadores)
             parte = pote // len(premiados)

@@ -12,6 +12,7 @@ from conteudo.perguntas import PERGUNTAS
 from utils import embeds, moeda
 from utils.jogos import DESENHOS, MAX_ERROS, Forca, jogada_do_bot, resultado_ppt, vencedor_velha
 from utils.mensagens import mensagem_duravel
+from cogs.conquistas import registrar_depois
 
 PREMIO_QUIZ = 50
 PREMIO_FORCA_LETRA = 80
@@ -76,6 +77,7 @@ class QuizView(discord.ui.View):
         self.stop()
         self._revelar()
         saldo = await self.bot.db.add_coins(interaction.guild.id, interaction.user.id, PREMIO_QUIZ)
+        registrar_depois(self.bot, interaction.guild.id, interaction.user.id, "quiz_acertos", canal=interaction.channel)
         e = interaction.message.embeds[0]
         e.color = embeds.VERDE
         e.add_field(name="🏆 Acertou primeiro", value=f"{interaction.user.mention} ganhou {moeda.fmt(PREMIO_QUIZ)}")
@@ -164,6 +166,8 @@ class ForcaView(discord.ui.View):
         rodape = f"{nome} acertou a letra {letra.upper()}!" if resultado == "acerto" else f"{nome} errou a letra {letra.upper()}."
         if self.jogo.ganhou:
             await self.bot.db.add_coins(interaction.guild.id, interaction.user.id, PREMIO_FORCA_LETRA)
+            registrar_depois(self.bot, interaction.guild.id, interaction.user.id, "forca_vitorias",
+                             canal=interaction.channel)
             rodape = f"{nome} completou a palavra e ganhou {PREMIO_FORCA_LETRA} {moeda.NOME}!"
         await self._atualizar(interaction, rodape)
 
@@ -173,6 +177,8 @@ class ForcaView(discord.ui.View):
         nome = interaction.user.display_name
         if self.jogo.chutar_palavra(chute):
             await self.bot.db.add_coins(interaction.guild.id, interaction.user.id, PREMIO_FORCA_PALAVRA)
+            registrar_depois(self.bot, interaction.guild.id, interaction.user.id, "forca_vitorias",
+                             canal=interaction.channel)
             rodape = f"{nome} acertou a palavra inteira e ganhou {PREMIO_FORCA_PALAVRA} {moeda.NOME}!"
         else:
             rodape = f"{nome} chutou \"{chute}\" e errou (-2 vidas)."
@@ -270,6 +276,12 @@ class VelhaView(discord.ui.View):
             self.stop()
             for casa in self.casas:
                 casa.disabled = True
+            g = interaction.guild.id
+            if fim in ("X", "O") and not (self.contra_bot and fim == "O"):
+                registrar_depois(self.bot, g, self.jogadores[fim].id, "velha_vitorias", canal=interaction.channel)
+            if fim == "empate" and self.contra_bot and self.dificuldade == "impossivel":
+                registrar_depois(self.bot, g, self.jogadores["X"].id, "velha_empate_impossivel",
+                                 canal=interaction.channel)
             if self.contra_bot:
                 _, _, premio_vitoria, premio_empate = DIFICULDADES[self.dificuldade]
                 premio = premio_vitoria if fim == "X" else premio_empate if fim == "empate" else 0
@@ -374,6 +386,7 @@ class PPTView(discord.ui.View):
         if resultado == "vitoria":
             cor = embeds.VERDE
             linhas.append("🏆 **Você venceu!**")
+            registrar_depois(self.bot, g, u, "ppt_vitorias", canal=interaction.channel)
             if self.aposta:
                 await self.bot.db.add_coins(g, u, self.aposta * 2)
                 linhas.append(f"Ganhou {moeda.fmt(self.aposta * 2)}.")

@@ -1,0 +1,12 @@
+Arquivos de terceiros usados pelo Harle Bot
+
+fontes/DejaVuSans.ttf
+  DejaVu Fonts (licença livre, veja fontes/LICENCA-DejaVu.txt)
+
+fontes/Poppins-*.ttf
+  Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)
+  SIL Open Font License 1.1 - https://scripts.sil.org/OFL
+
+emojis/*.png
+  Imagens geradas a partir da fonte Noto Color Emoji (https://github.com/googlefonts/noto-emoji)
+  Copyright Google Inc. - SIL Open Font License 1.1 (veja emojis/LICENCA-NotoColorEmoji.txt)

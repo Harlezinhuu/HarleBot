@@ -150,6 +150,67 @@ CREATE TABLE IF NOT EXISTS role_panel_items (
     PRIMARY KEY (message_id, role_id)
 );
 
+-- ---------- conquistas ----------
+
+CREATE TABLE IF NOT EXISTS stats (
+    guild_id  INTEGER NOT NULL,
+    user_id   INTEGER NOT NULL,
+    stat      TEXT    NOT NULL,
+    valor     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (guild_id, user_id, stat)
+);
+
+CREATE TABLE IF NOT EXISTS achievements (
+    guild_id    INTEGER NOT NULL,
+    user_id     INTEGER NOT NULL,
+    conquista   TEXT    NOT NULL,
+    quando      INTEGER NOT NULL,
+    PRIMARY KEY (guild_id, user_id, conquista)
+);
+
+-- ---------- boas-vindas, sorteios e tickets ----------
+
+CREATE TABLE IF NOT EXISTS welcome (
+    guild_id    INTEGER PRIMARY KEY,
+    channel_id  INTEGER NOT NULL,
+    mensagem    TEXT,
+    cargo_id    INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS giveaways (
+    message_id  INTEGER PRIMARY KEY,
+    guild_id    INTEGER NOT NULL,
+    channel_id  INTEGER NOT NULL,
+    host_id     INTEGER NOT NULL,
+    premio      TEXT    NOT NULL,
+    moedas      INTEGER NOT NULL DEFAULT 0,
+    cargo_id    INTEGER,
+    vencedores  INTEGER NOT NULL DEFAULT 1,
+    termina     INTEGER NOT NULL,
+    encerrado   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS giveaway_entries (
+    message_id  INTEGER NOT NULL,
+    user_id     INTEGER NOT NULL,
+    PRIMARY KEY (message_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS ticket_config (
+    guild_id     INTEGER PRIMARY KEY,
+    categoria_id INTEGER,
+    cargo_id     INTEGER,
+    contador     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS tickets (
+    channel_id  INTEGER PRIMARY KEY,
+    guild_id    INTEGER NOT NULL,
+    user_id     INTEGER NOT NULL,
+    numero      INTEGER NOT NULL,
+    aberto_em   INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS level_settings (
     guild_id    INTEGER PRIMARY KEY,
     announce    INTEGER NOT NULL DEFAULT 1,
@@ -599,6 +660,148 @@ class Database:
     async def painel_apagar(self, message_id: int):
         await self.conn.execute("DELETE FROM role_panel_items WHERE message_id = ?", (message_id,))
         await self.conn.execute("DELETE FROM role_panels WHERE message_id = ?", (message_id,))
+        await self.conn.commit()
+
+    # ---------- estatísticas e conquistas ----------
+
+    async def stat_somar(self, guild_id: int, user_id: int, stat: str, n: int = 1) -> int:
+        await self.conn.execute(
+            "INSERT INTO stats (guild_id, user_id, stat, valor) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(guild_id, user_id, stat) DO UPDATE SET valor = valor + excluded.valor",
+            (guild_id, user_id, stat, n))
+        await self.conn.commit()
+        return await self.stat(guild_id, user_id, stat)
+
+    async def stat_maximo(self, guild_id: int, user_id: int, stat: str, valor: int) -> int:
+        await self.conn.execute(
+            "INSERT INTO stats (guild_id, user_id, stat, valor) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(guild_id, user_id, stat) DO UPDATE SET valor = MAX(valor, excluded.valor)",
+            (guild_id, user_id, stat, valor))
+        await self.conn.commit()
+        return await self.stat(guild_id, user_id, stat)
+
+    async def stat(self, guild_id: int, user_id: int, stat: str) -> int:
+        async with self.conn.execute(
+            "SELECT valor FROM stats WHERE guild_id = ? AND user_id = ? AND stat = ?", (guild_id, user_id, stat)
+        ) as cur:
+            row = await cur.fetchone()
+        return row["valor"] if row else 0
+
+    async def stats(self, guild_id: int, user_id: int) -> Dict[str, int]:
+        async with self.conn.execute(
+            "SELECT stat, valor FROM stats WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)
+        ) as cur:
+            return {r["stat"]: r["valor"] for r in await cur.fetchall()}
+
+    async def conquista_desbloquear(self, guild_id: int, user_id: int, conquista: str) -> bool:
+        """Devolve True se desbloqueou agora (False se a pessoa já tinha)."""
+        cur = await self.conn.execute(
+            "INSERT OR IGNORE INTO achievements VALUES (?, ?, ?, ?)",
+            (guild_id, user_id, conquista, int(time.time())))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def conquistas(self, guild_id: int, user_id: int) -> List[str]:
+        async with self.conn.execute(
+            "SELECT conquista FROM achievements WHERE guild_id = ? AND user_id = ? ORDER BY quando",
+            (guild_id, user_id)
+        ) as cur:
+            return [r["conquista"] for r in await cur.fetchall()]
+
+    # ---------- boas-vindas ----------
+
+    async def set_welcome(self, guild_id: int, channel_id: Optional[int], mensagem: Optional[str] = None,
+                          cargo_id: Optional[int] = None):
+        if channel_id is None:
+            await self.conn.execute("DELETE FROM welcome WHERE guild_id = ?", (guild_id,))
+        else:
+            await self.conn.execute(
+                "INSERT INTO welcome VALUES (?, ?, ?, ?) ON CONFLICT(guild_id) DO UPDATE SET "
+                "channel_id = excluded.channel_id, mensagem = excluded.mensagem, cargo_id = excluded.cargo_id",
+                (guild_id, channel_id, mensagem, cargo_id))
+        await self.conn.commit()
+
+    async def get_welcome(self, guild_id: int) -> Optional[aiosqlite.Row]:
+        async with self.conn.execute("SELECT * FROM welcome WHERE guild_id = ?", (guild_id,)) as cur:
+            return await cur.fetchone()
+
+    # ---------- sorteios ----------
+
+    async def sorteio_criar(self, message_id: int, guild_id: int, channel_id: int, host_id: int, premio: str,
+                            moedas: int, cargo_id: Optional[int], vencedores: int, termina: int):
+        await self.conn.execute(
+            "INSERT INTO giveaways (message_id, guild_id, channel_id, host_id, premio, moedas, cargo_id, vencedores, "
+            "termina) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (message_id, guild_id, channel_id, host_id, premio, moedas, cargo_id, vencedores, termina))
+        await self.conn.commit()
+
+    async def sorteio(self, message_id: int) -> Optional[aiosqlite.Row]:
+        async with self.conn.execute("SELECT * FROM giveaways WHERE message_id = ?", (message_id,)) as cur:
+            return await cur.fetchone()
+
+    async def sorteios_vencidos(self, agora: int) -> List[aiosqlite.Row]:
+        async with self.conn.execute(
+            "SELECT * FROM giveaways WHERE encerrado = 0 AND termina <= ?", (agora,)
+        ) as cur:
+            return list(await cur.fetchall())
+
+    async def sorteio_encerrar(self, message_id: int) -> bool:
+        cur = await self.conn.execute(
+            "UPDATE giveaways SET encerrado = 1 WHERE message_id = ? AND encerrado = 0", (message_id,))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def sorteio_entrar(self, message_id: int, user_id: int) -> bool:
+        """Entra (True) ou sai (False) do sorteio."""
+        cur = await self.conn.execute(
+            "DELETE FROM giveaway_entries WHERE message_id = ? AND user_id = ?", (message_id, user_id))
+        if cur.rowcount == 0:
+            await self.conn.execute("INSERT INTO giveaway_entries VALUES (?, ?)", (message_id, user_id))
+        await self.conn.commit()
+        return cur.rowcount == 0
+
+    async def sorteio_participantes(self, message_id: int) -> List[int]:
+        async with self.conn.execute(
+            "SELECT user_id FROM giveaway_entries WHERE message_id = ?", (message_id,)
+        ) as cur:
+            return [r["user_id"] for r in await cur.fetchall()]
+
+    # ---------- tickets ----------
+
+    async def set_ticket_config(self, guild_id: int, categoria_id: Optional[int], cargo_id: Optional[int]):
+        await self.conn.execute(
+            "INSERT INTO ticket_config (guild_id, categoria_id, cargo_id) VALUES (?, ?, ?) "
+            "ON CONFLICT(guild_id) DO UPDATE SET categoria_id = excluded.categoria_id, cargo_id = excluded.cargo_id",
+            (guild_id, categoria_id, cargo_id))
+        await self.conn.commit()
+
+    async def get_ticket_config(self, guild_id: int) -> Optional[aiosqlite.Row]:
+        async with self.conn.execute("SELECT * FROM ticket_config WHERE guild_id = ?", (guild_id,)) as cur:
+            return await cur.fetchone()
+
+    async def ticket_proximo_numero(self, guild_id: int) -> int:
+        await self.conn.execute("INSERT OR IGNORE INTO ticket_config (guild_id) VALUES (?)", (guild_id,))
+        await self.conn.execute("UPDATE ticket_config SET contador = contador + 1 WHERE guild_id = ?", (guild_id,))
+        await self.conn.commit()
+        return (await self.get_ticket_config(guild_id))["contador"]
+
+    async def ticket_abrir(self, channel_id: int, guild_id: int, user_id: int, numero: int):
+        await self.conn.execute("INSERT INTO tickets VALUES (?, ?, ?, ?, ?)",
+                                (channel_id, guild_id, user_id, numero, int(time.time())))
+        await self.conn.commit()
+
+    async def ticket(self, channel_id: int) -> Optional[aiosqlite.Row]:
+        async with self.conn.execute("SELECT * FROM tickets WHERE channel_id = ?", (channel_id,)) as cur:
+            return await cur.fetchone()
+
+    async def ticket_aberto_de(self, guild_id: int, user_id: int) -> Optional[aiosqlite.Row]:
+        async with self.conn.execute(
+            "SELECT * FROM tickets WHERE guild_id = ? AND user_id = ?", (guild_id, user_id)
+        ) as cur:
+            return await cur.fetchone()
+
+    async def ticket_fechar(self, channel_id: int):
+        await self.conn.execute("DELETE FROM tickets WHERE channel_id = ?", (channel_id,))
         await self.conn.commit()
 
     # ---------- música 24/7 ----------

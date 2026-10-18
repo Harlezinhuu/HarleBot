@@ -15,6 +15,7 @@ from discord.ext import commands
 from utils import embeds, moeda
 from utils.xadrez import NOME_PECA, NIVEIS, SIMBOLO, bot_aceita_empate, desenhar, ler_lance, lance_em_portugues, melhor_lance
 from utils.mensagens import mensagem_duravel
+from cogs.conquistas import registrar_depois
 
 # O bot pensa num processo separado: assim, enquanto ele calcula, o resto do Harle Bot continua respondendo.
 _PENSADOR = concurrent.futures.ProcessPoolExecutor(max_workers=1)
@@ -225,6 +226,11 @@ class PartidaXadrez:
                 self.resultado += " As apostas foram devolvidas."
         else:
             ganhador = self.jogador(vencedor)
+            if not ganhador.bot:
+                canal = getattr(self.mensagem, "channel", None)
+                registrar_depois(self.bot, self.guild_id, ganhador.id, "xadrez_vitorias", canal=canal)
+                if self.contra_bot and self.nivel == "dificil":
+                    registrar_depois(self.bot, self.guild_id, ganhador.id, "xadrez_bot_dificil", canal=canal)
             self.resultado = f"🏆 {motivo} {ganhador.mencao} venceu com as {'brancas' if vencedor else 'pretas'}!"
             if self.aposta and not ganhador.bot:
                 await self.bot.db.add_coins(self.guild_id, ganhador.id, self.aposta * 2)

@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from utils import embeds, moeda
 from utils.niveis import barra, nivel_de
+from cogs.conquistas import registrar_depois
 
 XP_MIN, XP_MAX = 15, 25
 INTERVALO_XP = 60          # segundos entre mensagens que contam XP (evita farm de spam)
@@ -45,6 +46,8 @@ class Niveis(commands.Cog, name="Níveis"):
         nivel_antes, nivel_depois = nivel_de(antes)[0], nivel_de(depois)[0]
         if nivel_depois > nivel_antes:
             await self._subiu_de_nivel(mensagem, nivel_depois)
+            registrar_depois(self.bot, mensagem.guild.id, mensagem.author.id, "max_nivel", maximo=nivel_depois,
+                             canal=mensagem.channel)
 
     async def _subiu_de_nivel(self, mensagem: discord.Message, nivel: int):
         guild, membro = mensagem.guild, mensagem.author

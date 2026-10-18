@@ -1,4 +1,5 @@
 """Loja de itens (temas, insígnias, títulos, boosts e cargos), inventário e perfil."""
+import asyncio
 import time
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -7,7 +8,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from conteudo.conquistas import POR_ID as CONQUISTA_POR_ID
 from conteudo.itens import CATEGORIAS, ITENS, eh_consumivel, rotulo
+from utils.cards import desenhar_perfil
 from utils import embeds, moeda
 from utils.jogos import sem_acento
 from utils.niveis import barra, nivel_de
@@ -281,13 +284,14 @@ class Perfil(commands.Cog, name="Loja e Perfil"):
 
     # ---------- perfil ----------
 
-    @app_commands.command(name="perfil", description="Mostra o perfil com tema, título, insígnias, nível e moedas.")
+    @app_commands.command(name="perfil", description="Mostra o perfil em imagem: tema, título, insígnias, nível e moedas.")
     @app_commands.describe(membro="De quem ver o perfil")
     @app_commands.guild_only()
     async def perfil(self, interaction: discord.Interaction, membro: Optional[discord.Member] = None):
         membro = membro or interaction.user
         if membro.bot:
             return await interaction.response.send_message(embed=embeds.erro("Bots não têm perfil."), ephemeral=True)
+        await interaction.response.defer()
         g, u = interaction.guild.id, membro.id
         sobre, tema, titulo = await self.db.profile_get(g, u)
         carteira = await self.db.get_wallet(g, u)
@@ -296,27 +300,27 @@ class Perfil(commands.Cog, name="Loja e Perfil"):
         posicao = await self.db.xp_rank(g, u)
         insignias = [ITENS[r["item_id"]]["emoji"] for r in await self.db.inv_list(g, u)
                      if r["item_id"] in ITENS and ITENS[r["item_id"]]["categoria"] == "insignia"]
+        feitas = await self.db.conquistas(g, u)
+        emojis_conquistas = [CONQUISTA_POR_ID[c]["emoji"] for c in feitas if c in CONQUISTA_POR_ID]
+        try:
+            avatar = await membro.display_avatar.replace(size=256, static_format="png").read()
+        except (discord.HTTPException, ValueError):
+            avatar = None
 
-        cor = ITENS[tema]["cor"] if tema in ITENS else embeds.AZUL
-        emoji_tema = ITENS[tema]["emoji"] + " " if tema in ITENS else ""
-        e = discord.Embed(title=f"{emoji_tema}{membro.display_name}", color=cor)
-        partes = []
-        if titulo in ITENS:
-            partes.append(f"*{rotulo(titulo)}*")
-        partes.append(sobre or "*Sem \"sobre mim\" ainda. Use `/sobremim` para escrever o seu.*")
-        e.description = "\n\n".join(partes)
-        e.add_field(name="Nível", value=f"**{nivel}** · #{posicao} no servidor")
-        e.add_field(name=moeda.NOME, value=f"{moeda.EMOJI} {carteira['coins']:,}".replace(",", "."))
-        e.add_field(name="Daily seguido", value=f"🔥 {carteira['streak']}")
-        e.add_field(name=f"Progresso para o nível {nivel + 1}", value=f"{barra(atual, precisa)} {atual}/{precisa}",
-                    inline=False)
-        if insignias:
-            e.add_field(name="Insígnias", value=" ".join(insignias), inline=False)
+        imagem = await asyncio.to_thread(
+            desenhar_perfil,
+            nome=membro.display_name, avatar=avatar,
+            cor=ITENS[tema]["cor"] if tema in ITENS else embeds.AZUL,
+            emoji_tema=ITENS[tema]["emoji"] if tema in ITENS else None,
+            titulo=ITENS[titulo]["nome"] if titulo in ITENS else None,
+            emoji_titulo=ITENS[titulo]["emoji"] if titulo in ITENS else None,
+            sobre=sobre, nivel=nivel, xp_atual=atual, xp_precisa=precisa, posicao=posicao,
+            moedas=carteira["coins"], sequencia=carteira["streak"], insignias=insignias,
+            conquistas=emojis_conquistas, total_conquistas=len(CONQUISTA_POR_ID),
+        )
         ativos = await self._boosts_ativos(g, u)
-        if ativos:
-            e.add_field(name="Boosts ativos", value="\n".join(ativos), inline=False)
-        e.set_thumbnail(url=membro.display_avatar.url)
-        await interaction.response.send_message(embed=e)
+        texto = ("⏳ " + " · ".join(ativos)) if ativos else None
+        await interaction.followup.send(content=texto, file=discord.File(imagem, filename="perfil.png"))
 
     @app_commands.command(name="sobremim", description="Escreve o texto que aparece no seu /perfil.")
     @app_commands.describe(texto=f"Até {LIMITE_SOBRE_MIM} caracteres (deixe vazio para apagar)")

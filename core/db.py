@@ -1,7 +1,7 @@
 """Banco de dados do bot (SQLite). Um arquivo só, sem precisar instalar servidor."""
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import aiosqlite
 
@@ -95,6 +95,59 @@ CREATE TABLE IF NOT EXISTS boosts (
 CREATE TABLE IF NOT EXISTS music_247 (
     guild_id    INTEGER PRIMARY KEY,
     channel_id  INTEGER NOT NULL
+);
+
+-- ---------- proteção e cargos ----------
+
+CREATE TABLE IF NOT EXISTS automod (
+    guild_id        INTEGER PRIMARY KEY,
+    ativo           INTEGER NOT NULL DEFAULT 0,
+    anti_spam       INTEGER NOT NULL DEFAULT 1,
+    anti_links      INTEGER NOT NULL DEFAULT 0,
+    anti_convites   INTEGER NOT NULL DEFAULT 1,
+    anti_caps       INTEGER NOT NULL DEFAULT 0,
+    anti_mencoes    INTEGER NOT NULL DEFAULT 1,
+    limite_mencoes  INTEGER NOT NULL DEFAULT 5,
+    punicao         TEXT    NOT NULL DEFAULT 'silenciar'
+);
+
+CREATE TABLE IF NOT EXISTS automod_palavras (
+    guild_id  INTEGER NOT NULL,
+    palavra   TEXT    NOT NULL,
+    PRIMARY KEY (guild_id, palavra)
+);
+
+CREATE TABLE IF NOT EXISTS automod_ignorados (
+    guild_id  INTEGER NOT NULL,
+    alvo_id   INTEGER NOT NULL,     -- canal ou cargo
+    PRIMARY KEY (guild_id, alvo_id)
+);
+
+CREATE TABLE IF NOT EXISTS antiraid (
+    guild_id      INTEGER PRIMARY KEY,
+    ativo         INTEGER NOT NULL DEFAULT 0,
+    limite        INTEGER NOT NULL DEFAULT 8,
+    janela        INTEGER NOT NULL DEFAULT 15,
+    acao          TEXT    NOT NULL DEFAULT 'verificacao',
+    idade_minima  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS role_panels (
+    message_id   INTEGER PRIMARY KEY,
+    guild_id     INTEGER NOT NULL,
+    channel_id   INTEGER NOT NULL,
+    titulo       TEXT    NOT NULL,
+    descricao    TEXT,
+    modo         TEXT    NOT NULL,          -- 'botoes' ou 'reacoes'
+    unico        INTEGER NOT NULL DEFAULT 0 -- 1 = só um cargo do painel por pessoa
+);
+
+CREATE TABLE IF NOT EXISTS role_panel_items (
+    message_id  INTEGER NOT NULL,
+    role_id     INTEGER NOT NULL,
+    emoji       TEXT,
+    rotulo      TEXT,
+    PRIMARY KEY (message_id, role_id)
 );
 
 CREATE TABLE IF NOT EXISTS level_settings (
@@ -420,6 +473,111 @@ class Database:
         ) as cur:
             row = await cur.fetchone()
         return row["until"] if row else 0
+
+    # ---------- automod ----------
+
+    CAMPOS_AUTOMOD = ("ativo", "anti_spam", "anti_links", "anti_convites", "anti_caps", "anti_mencoes",
+                      "limite_mencoes", "punicao")
+
+    async def get_automod(self, guild_id: int) -> Dict:
+        async with self.conn.execute("SELECT * FROM automod WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+        if row is None:
+            return {"ativo": 0, "anti_spam": 1, "anti_links": 0, "anti_convites": 1, "anti_caps": 0,
+                    "anti_mencoes": 1, "limite_mencoes": 5, "punicao": "silenciar"}
+        return {k: row[k] for k in self.CAMPOS_AUTOMOD}
+
+    async def set_automod(self, guild_id: int, **campos):
+        campos = {k: v for k, v in campos.items() if k in self.CAMPOS_AUTOMOD and v is not None}
+        await self.conn.execute("INSERT OR IGNORE INTO automod (guild_id) VALUES (?)", (guild_id,))
+        if campos:
+            sets = ", ".join(f"{k} = ?" for k in campos)
+            await self.conn.execute(f"UPDATE automod SET {sets} WHERE guild_id = ?", (*campos.values(), guild_id))
+        await self.conn.commit()
+
+    async def palavras_proibidas(self, guild_id: int) -> List[str]:
+        async with self.conn.execute(
+            "SELECT palavra FROM automod_palavras WHERE guild_id = ? ORDER BY palavra", (guild_id,)
+        ) as cur:
+            return [r["palavra"] for r in await cur.fetchall()]
+
+    async def palavra_adicionar(self, guild_id: int, palavra: str):
+        await self.conn.execute("INSERT OR IGNORE INTO automod_palavras VALUES (?, ?)", (guild_id, palavra))
+        await self.conn.commit()
+
+    async def palavra_remover(self, guild_id: int, palavra: str) -> bool:
+        cur = await self.conn.execute(
+            "DELETE FROM automod_palavras WHERE guild_id = ? AND palavra = ?", (guild_id, palavra))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def ignorados(self, guild_id: int) -> List[int]:
+        async with self.conn.execute("SELECT alvo_id FROM automod_ignorados WHERE guild_id = ?", (guild_id,)) as cur:
+            return [r["alvo_id"] for r in await cur.fetchall()]
+
+    async def alternar_ignorado(self, guild_id: int, alvo_id: int) -> bool:
+        """Liga/desliga a exceção. Devolve True se agora está sendo ignorado."""
+        cur = await self.conn.execute(
+            "DELETE FROM automod_ignorados WHERE guild_id = ? AND alvo_id = ?", (guild_id, alvo_id))
+        if cur.rowcount == 0:
+            await self.conn.execute("INSERT INTO automod_ignorados VALUES (?, ?)", (guild_id, alvo_id))
+        await self.conn.commit()
+        return cur.rowcount == 0
+
+    # ---------- anti-raid ----------
+
+    async def get_antiraid(self, guild_id: int) -> Dict:
+        async with self.conn.execute("SELECT * FROM antiraid WHERE guild_id = ?", (guild_id,)) as cur:
+            row = await cur.fetchone()
+        if row is None:
+            return {"ativo": 0, "limite": 8, "janela": 15, "acao": "verificacao", "idade_minima": 0}
+        return {k: row[k] for k in ("ativo", "limite", "janela", "acao", "idade_minima")}
+
+    async def set_antiraid(self, guild_id: int, **campos):
+        campos = {k: v for k, v in campos.items()
+                  if k in ("ativo", "limite", "janela", "acao", "idade_minima") and v is not None}
+        await self.conn.execute("INSERT OR IGNORE INTO antiraid (guild_id) VALUES (?)", (guild_id,))
+        if campos:
+            sets = ", ".join(f"{k} = ?" for k in campos)
+            await self.conn.execute(f"UPDATE antiraid SET {sets} WHERE guild_id = ?", (*campos.values(), guild_id))
+        await self.conn.commit()
+
+    # ---------- painéis de cargos ----------
+
+    async def painel_criar(self, message_id: int, guild_id: int, channel_id: int, titulo: str,
+                           descricao: Optional[str], modo: str, unico: bool):
+        await self.conn.execute(
+            "INSERT INTO role_panels VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (message_id, guild_id, channel_id, titulo, descricao, modo, int(unico)))
+        await self.conn.commit()
+
+    async def painel(self, message_id: int) -> Optional[aiosqlite.Row]:
+        async with self.conn.execute("SELECT * FROM role_panels WHERE message_id = ?", (message_id,)) as cur:
+            return await cur.fetchone()
+
+    async def painel_itens(self, message_id: int) -> List[aiosqlite.Row]:
+        async with self.conn.execute(
+            "SELECT * FROM role_panel_items WHERE message_id = ? ORDER BY rowid", (message_id,)
+        ) as cur:
+            return list(await cur.fetchall())
+
+    async def painel_item_salvar(self, message_id: int, role_id: int, emoji: Optional[str], rotulo: Optional[str]):
+        await self.conn.execute(
+            "INSERT INTO role_panel_items VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(message_id, role_id) DO UPDATE SET emoji = excluded.emoji, rotulo = excluded.rotulo",
+            (message_id, role_id, emoji, rotulo))
+        await self.conn.commit()
+
+    async def painel_item_remover(self, message_id: int, role_id: int) -> bool:
+        cur = await self.conn.execute(
+            "DELETE FROM role_panel_items WHERE message_id = ? AND role_id = ?", (message_id, role_id))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
+    async def painel_apagar(self, message_id: int):
+        await self.conn.execute("DELETE FROM role_panel_items WHERE message_id = ?", (message_id,))
+        await self.conn.execute("DELETE FROM role_panels WHERE message_id = ?", (message_id,))
+        await self.conn.commit()
 
     # ---------- música 24/7 ----------
 

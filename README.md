@@ -130,6 +130,19 @@ Ao subir de nível, a pessoa ganha moedas e, se configurado, um cargo.
 ### Status
 O perfil do bot fica trocando de status a cada 45 segundos (lista em `cogs/status.py`, fácil de editar).
 
+### Proteção 🛡️
+**Automod** (`/automod configurar`, `ver`, `palavra`, `ignorar`): apaga spam, links, convites de outros servidores,
+mensagens em CAPS LOCK, excesso de menções e palavras proibidas (ignorando acentos). A punição pode ser só apagar,
+dar um aviso ou silenciar por 10 minutos na 3ª infração. Quem pode gerenciar mensagens nunca é afetado.
+
+**Anti-raid** (`/antiraid configurar`, `encerrar`): se muita gente entrar em pouco tempo, o bot sobe a verificação
+do servidor para o máximo ou expulsa quem entrar durante o ataque, por 10 minutos. Também pode expulsar contas
+criadas há poucos dias. Tudo é registrado no canal de `/config-logs`.
+
+### Painéis de cargos 🎭
+No estilo Carl-bot: `/cargos criar` (por **botões** ou **reações**, com opção de escolha única),
+`/cargos adicionar` e `/cargos remover`. Os botões continuam funcionando mesmo depois de o bot reiniciar.
+
 ### Registros
 Com `/config-logs #canal`, o bot anota nesse canal: punições, limpezas, mensagens apagadas
 e editadas, e quem entra e sai do servidor.

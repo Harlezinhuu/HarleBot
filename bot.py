@@ -21,6 +21,8 @@ COGS = [
     "cogs.config",
     "cogs.moderacao",
     "cogs.registros",
+    "cogs.protecao",
+    "cogs.cargos",
     "cogs.economia",
     "cogs.perfil",
     "cogs.niveis",

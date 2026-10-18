@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from utils import embeds
 
-ORDEM = ["Geral", "Música", "Jogos", "Truco", "Xadrez", "Cassino", "Batalha", "Economia", "Loja e Perfil", "Níveis", "Moderação", "Configuração"]
+ORDEM = ["Geral", "Música", "Jogos", "Truco", "Xadrez", "Cassino", "Batalha", "Economia", "Loja e Perfil", "Níveis", "Moderação", "Proteção", "Cargos", "Configuração"]
 SITE = "https://harlezinhuu.github.io"
 
 
@@ -16,16 +16,18 @@ class Geral(commands.Cog, name="Geral"):
     @app_commands.command(name="ajuda", description="Mostra tudo que o bot sabe fazer.")
     async def ajuda(self, interaction: discord.Interaction):
         grupos = {}
-        for cmd in self.bot.tree.get_commands():
-            if isinstance(cmd, app_commands.Command):
+        for cmd in self.bot.tree.walk_commands():
+            if isinstance(cmd, app_commands.Command):   # inclui subcomandos, como /automod configurar
                 nome = cmd.binding.qualified_name if cmd.binding else "Geral"
                 grupos.setdefault(nome, []).append(cmd)
 
         e = discord.Embed(title="Comandos do Harle Bot", color=embeds.AZUL,
                           description="Digite `/` no chat para ver e usar qualquer um deles.")
         for nome in sorted(grupos, key=lambda n: ORDEM.index(n) if n in ORDEM else len(ORDEM)):
-            linhas = [f"{'🔒 ' if c.default_permissions else ''}`/{c.name}` {c.description}"
-                      for c in sorted(grupos[nome], key=lambda c: c.name)]
+            def restrito(c):
+                return bool(c.default_permissions or (c.parent and c.parent.default_permissions))
+            linhas = [f"{'🔒 ' if restrito(c) else ''}`/{c.qualified_name}` {c.description}"
+                      for c in sorted(grupos[nome], key=lambda c: c.qualified_name)]
             # um campo aceita até 1024 caracteres; se passar, divide em mais campos
             bloco, primeiro = "", True
             for linha in linhas:

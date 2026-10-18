@@ -95,7 +95,7 @@ Toca músicas do **YouTube** e do **SoundCloud** no canal de voz, por nome ou li
 | `/apostar` | Cara ou coroa: acertou, dobra. |
 | `/ranking-moedas` | Quem tem mais moedas no servidor. |
 | 🔒 `/loja-adicionar`, `/loja-remover` | Para a administração gerenciar a loja. |
-| 👑 `/dar-moedas` | Só o **dono do bot** (dono do aplicativo no Developer Portal, ou IDs em `DONOS_DO_BOT`). |
+| 👑 `/dar-moedas`, `/moedas-todos` | Dar/tirar de uma pessoa, ou dar, tirar e zerar de todo mundo (com confirmação). Só o **dono do bot** (dono do aplicativo no Developer Portal, ou IDs em `DONOS_DO_BOT`). |
 
 ### Loja e perfil
 Itens comprados com Harlecoins para personalizar o perfil, no estilo da Loritta.

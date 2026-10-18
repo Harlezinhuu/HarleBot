@@ -301,6 +301,28 @@ class Database:
         )
         await self.conn.commit()
 
+    async def add_coins_varios(self, guild_id: int, user_ids: List[int], delta: int) -> int:
+        """Soma `delta` para cada pessoa da lista (cria a carteira se não existir). Devolve quantas."""
+        await self.conn.executemany(
+            "INSERT OR IGNORE INTO economy (guild_id, user_id) VALUES (?, ?)", [(guild_id, u) for u in user_ids])
+        await self.conn.executemany(
+            "UPDATE economy SET coins = MAX(coins + ?, 0) WHERE guild_id = ? AND user_id = ?",
+            [(delta, guild_id, u) for u in user_ids])
+        await self.conn.commit()
+        return len(user_ids)
+
+    async def tirar_coins_de_todos(self, guild_id: int, quantidade: int) -> int:
+        """Tira `quantidade` de todas as carteiras do servidor (sem ficar negativo). Devolve quantas mudaram."""
+        cur = await self.conn.execute(
+            "UPDATE economy SET coins = MAX(coins - ?, 0) WHERE guild_id = ? AND coins > 0", (quantidade, guild_id))
+        await self.conn.commit()
+        return cur.rowcount
+
+    async def zerar_coins(self, guild_id: int) -> int:
+        cur = await self.conn.execute("UPDATE economy SET coins = 0 WHERE guild_id = ? AND coins > 0", (guild_id,))
+        await self.conn.commit()
+        return cur.rowcount
+
     async def top_coins(self, guild_id: int, limite: int = 10) -> List[aiosqlite.Row]:
         async with self.conn.execute(
             "SELECT user_id, coins FROM economy WHERE guild_id = ? AND coins > 0 ORDER BY coins DESC LIMIT ?",

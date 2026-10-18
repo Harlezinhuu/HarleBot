@@ -221,5 +221,73 @@ class Economia(commands.Cog, name="Economia"):
             embed=embeds.sucesso(f"Saldo de {membro.mention} agora é {moeda.fmt(saldo)}."), ephemeral=True)
 
 
+    @app_commands.command(name="moedas-todos", description="(Só o dono do bot) Dá, tira ou zera as moedas de todo mundo.")
+    @app_commands.describe(acao="O que fazer com as carteiras de todo o servidor",
+                           quantidade="Quanto dar ou tirar de cada pessoa (não precisa para zerar)")
+    @app_commands.choices(acao=[
+        Choice(name="Dar para todos os membros", value="dar"),
+        Choice(name="Tirar de todos", value="tirar"),
+        Choice(name="Zerar todo mundo", value="zerar"),
+    ])
+    @app_commands.guild_only()
+    @app_commands.default_permissions(administrator=True)
+    async def moedas_todos(self, interaction: discord.Interaction, acao: Choice[str],
+                           quantidade: Optional[app_commands.Range[int, 1, 100_000_000]] = None):
+        if not await self.bot.eh_dono(interaction.user):
+            return await interaction.response.send_message(
+                embed=embeds.erro("Só o dono do bot pode usar esse comando."), ephemeral=True)
+        if acao.value != "zerar" and not quantidade:
+            return await interaction.response.send_message(
+                embed=embeds.erro("Diga a quantidade para dar ou tirar."), ephemeral=True)
+
+        if acao.value == "dar":
+            alvo = len([m for m in interaction.guild.members if not m.bot])
+            texto = f"Dar {moeda.fmt(quantidade)} para **cada um dos {alvo} membros** do servidor?"
+        elif acao.value == "tirar":
+            texto = f"Tirar {moeda.fmt(quantidade)} de **todas as carteiras** do servidor? (ninguém fica negativo)"
+        else:
+            texto = "**Zerar as moedas de todo mundo** neste servidor? Isso não tem volta."
+        view = ConfirmarMoedas(self, interaction.user.id, acao.value, quantidade or 0)
+        await interaction.response.send_message(
+            embed=discord.Embed(title="⚠️ Confirmar", description=texto, color=embeds.AMBAR), view=view, ephemeral=True)
+
+    async def executar_em_massa(self, guild: discord.Guild, acao: str, quantidade: int) -> str:
+        def n(total, singular, plural):
+            return f"{total} {singular if total == 1 else plural}"
+        if acao == "dar":
+            ids = [m.id for m in guild.members if not m.bot]
+            total = await self.db.add_coins_varios(guild.id, ids, quantidade)
+            return f"Dei {moeda.fmt(quantidade)} para {n(total, 'membro', 'membros')}."
+        if acao == "tirar":
+            total = await self.db.tirar_coins_de_todos(guild.id, quantidade)
+            return f"Tirei até {moeda.fmt(quantidade)} de {n(total, 'carteira', 'carteiras')}."
+        total = await self.db.zerar_coins(guild.id)
+        return f"Zerei {n(total, 'carteira', 'carteiras')}."
+
+
+class ConfirmarMoedas(discord.ui.View):
+    def __init__(self, cog: Economia, dono_id: int, acao: str, quantidade: int):
+        super().__init__(timeout=30)
+        self.cog, self.dono_id, self.acao, self.quantidade = cog, dono_id, acao, quantidade
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return interaction.user.id == self.dono_id
+
+    @discord.ui.button(label="Confirmar", emoji="✅", style=discord.ButtonStyle.danger)
+    async def confirmar(self, interaction: discord.Interaction, _):
+        self.stop()
+        resultado = await self.cog.executar_em_massa(interaction.guild, self.acao, self.quantidade)
+        await interaction.response.edit_message(embed=embeds.sucesso(resultado), view=None)
+        log = discord.Embed(title="👑 Moedas em massa", color=embeds.AMBAR, timestamp=embeds.agora(),
+                            description=resultado)
+        log.add_field(name="Feito por", value=interaction.user.mention)
+        await self.cog.bot.enviar_log(interaction.guild, log)
+
+    @discord.ui.button(label="Cancelar", emoji="✖️", style=discord.ButtonStyle.secondary)
+    async def cancelar(self, interaction: discord.Interaction, _):
+        self.stop()
+        await interaction.response.edit_message(embed=embeds.sucesso("Cancelado, nada mudou."), view=None)
+
+
 async def setup(bot):
     await bot.add_cog(Economia(bot))

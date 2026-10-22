@@ -212,21 +212,39 @@ class Economia(commands.Cog, name="Economia"):
         else:
             await interaction.response.send_message(embed=embeds.erro("Esse cargo não estava na loja."), ephemeral=True)
 
-    @app_commands.command(name="dar-moedas", description="(Só o dono do bot) Dá ou tira moedas de alguém.")
-    @app_commands.describe(membro="Quem vai receber", quantidade="Quanto dar. Use negativo para tirar.")
+    @app_commands.command(name="dar-moedas", description="(Só o dono do bot) Dá, tira ou define as moedas de alguém.")
+    @app_commands.describe(membro="De quem mexer na carteira", acao="Dar, tirar ou definir o saldo exato",
+                           quantidade="Quantas moedas")
+    @app_commands.choices(acao=[
+        Choice(name="Dar moedas", value="dar"),
+        Choice(name="Tirar moedas", value="tirar"),
+        Choice(name="Definir saldo exato", value="definir"),
+    ])
     @app_commands.guild_only()
     @app_commands.default_permissions(administrator=True)  # esconde o comando de quem não é administrador
-    async def dar_moedas(self, interaction: discord.Interaction, membro: discord.Member,
-                         quantidade: app_commands.Range[int, -100_000_000, 100_000_000]):
+    async def dar_moedas(self, interaction: discord.Interaction, membro: discord.Member, acao: Choice[str],
+                         quantidade: app_commands.Range[int, 0, 1_000_000_000]):
         if not await self.bot.eh_dono(interaction.user):
             return await interaction.response.send_message(
                 embed=embeds.erro("Só o dono do bot pode usar esse comando."), ephemeral=True)
         if membro.bot:
             return await interaction.response.send_message(embed=embeds.erro("Bots não têm carteira."), ephemeral=True)
-        saldo = await self.db.add_coins(interaction.guild.id, membro.id, quantidade)
+        g = interaction.guild.id
+        antes = (await self.db.get_wallet(g, membro.id))["coins"]
+        if acao.value == "dar":
+            saldo = await self.db.add_coins(g, membro.id, quantidade)
+            texto = f"Dei {moeda.fmt(quantidade)} para {membro.mention}."
+        elif acao.value == "tirar":
+            saldo = await self.db.add_coins(g, membro.id, -quantidade)
+            tirado = antes - saldo
+            texto = f"Tirei {moeda.fmt(tirado)} de {membro.mention}."
+            if tirado < quantidade:
+                texto += f" (a pessoa só tinha {moeda.fmt(antes)})"
+        else:
+            saldo = await self.db.set_coins(g, membro.id, quantidade)
+            texto = f"Saldo de {membro.mention} definido."
         await interaction.response.send_message(
-            embed=embeds.sucesso(f"Saldo de {membro.mention} agora é {moeda.fmt(saldo)}."), ephemeral=True)
-
+            embed=embeds.sucesso(f"{texto}\nAntes: {moeda.fmt(antes)} · Agora: {moeda.fmt(saldo)}"), ephemeral=True)
 
     @app_commands.command(name="moedas-todos", description="(Só o dono do bot) Dá, tira ou zera as moedas de todo mundo.")
     @app_commands.describe(acao="O que fazer com as carteiras de todo o servidor",

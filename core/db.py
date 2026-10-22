@@ -331,6 +331,16 @@ class Database:
         await self.conn.commit()
         return (await self.get_wallet(guild_id, user_id))["coins"]
 
+    async def set_coins(self, guild_id: int, user_id: int, valor: int) -> int:
+        """Define o saldo exato (nunca negativo). Devolve o saldo novo."""
+        await self._garantir_carteira(guild_id, user_id)
+        await self.conn.execute(
+            "UPDATE economy SET coins = MAX(?, 0) WHERE guild_id = ? AND user_id = ?",
+            (valor, guild_id, user_id),
+        )
+        await self.conn.commit()
+        return (await self.get_wallet(guild_id, user_id))["coins"]
+
     async def spend_coins(self, guild_id: int, user_id: int, amount: int) -> bool:
         """Tira `amount` moedas só se a pessoa tiver o suficiente. Devolve se deu certo."""
         await self._garantir_carteira(guild_id, user_id)

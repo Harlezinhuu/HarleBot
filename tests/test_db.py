@@ -47,6 +47,9 @@ def test_economia_e_niveis():
         assert await db.transfer(1, 10, 20, 60) is True
         assert (await db.get_wallet(1, 10))["coins"] == 40
         assert (await db.get_wallet(1, 20))["coins"] == 60
+        assert await db.set_coins(1, 30, 777) == 777          # definir saldo exato
+        assert await db.set_coins(1, 30, -5) == 0
+        await db.set_coins(1, 30, 0)
         assert [r["user_id"] for r in await db.top_coins(1)] == [20, 10]
 
         await db.set_daily(1, 10, 1000, 3)

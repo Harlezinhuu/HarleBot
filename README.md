@@ -1,7 +1,14 @@
 # Harle Bot
 
+[![Testes](https://github.com/Harlezinhuu/HarleBot/actions/workflows/testes.yml/badge.svg)](https://github.com/Harlezinhuu/HarleBot/actions/workflows/testes.yml)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![discord.py](https://img.shields.io/badge/discord.py-2.x-5865F2?logo=discord&logoColor=white)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-8b7bff)](LICENSE)
+
 Bot de Discord completo, feito em Python com [discord.py](https://discordpy.readthedocs.io/).
-Moderação, registros e (em breve) jogos e música, tudo com comandos de barra (`/`) em português.
+Moderação com automod e anti-raid, economia com loja e perfil em imagem, conquistas, sorteios, tickets e jogos como truco paulista, xadrez, blackjack e campo minado, tudo com comandos de barra (`/`) em português.
+
+**[➕ Adicionar o Harle Bot ao seu servidor](https://discord.com/oauth2/authorize?client_id=1561140467351949403&permissions=1099780189302&scope=bot%20applications.commands)**
 
 Feito por **Harle** · [harlezinhuu.github.io](https://harlezinhuu.github.io)
 
